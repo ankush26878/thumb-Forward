@@ -50,7 +50,7 @@ async def settings_callback(bot, query):
     buttons.append([InlineKeyboardButton('🔘 Bᴜᴛᴛᴏɴ', callback_data="settings#button")])
     buttons.append([InlineKeyboardButton('🔍 Fɪʟᴛᴇʀs', callback_data="settings#filters")])
     buttons.append([InlineKeyboardButton('🗃 MᴏɴɢᴏDB', callback_data="settings#database")])
-    buttons.append([InlineKeyboardButton('🖼️ Tʜᴜᴍʙɴᴀɪʟ', callback_data="thumbnail#main")])
+    buttons.append([InlineKeyboardButton('🖼️ Tʜᴜᴍʙɴᴀɪʟ Sᴇᴛᴛɪɴɢs', callback_data="thumbnail#main")])
     buttons.append([InlineKeyboardButton('⚙️ Exᴛʀᴀ Sᴇᴛᴛɪɴɢs', callback_data="settings#extra")])
     buttons.append([InlineKeyboardButton('⫷ Bᴀᴄᴋ', callback_data="help")])
     logger.info(f"Main settings buttons: {buttons}")
@@ -548,7 +548,7 @@ def main_buttons():
         [InlineKeyboardButton('🔘 Bᴜᴛᴛᴏɴ', callback_data='settings#button')],
         [InlineKeyboardButton('🔍 Fɪʟᴛᴇʀs', callback_data='settings#filters')],
         [InlineKeyboardButton('🗃 MᴏɴɢᴏDB', callback_data='settings#database')],
-        [InlineKeyboardButton('🖼️ Tʜᴜᴍʙɴᴀɪʟ', callback_data='thumbnail#main')],
+        [InlineKeyboardButton('🖼️ Tʜᴜᴍʙɴᴀɪʟ Sᴇᴛᴛɪɴɢs', callback_data='thumbnail#main')],
         [InlineKeyboardButton('⚙️ Exᴛʀᴀ Sᴇᴛᴛɪɴɢs', callback_data='settings#extra')],
         [InlineKeyboardButton('⫷ Bᴀᴄᴋ', callback_data='help')]
     ]
@@ -563,16 +563,16 @@ def extra_buttons():
        InlineKeyboardButton('💾 Mᴀx Sɪᴢᴇ Lɪᴍɪᴛ',
                     callback_data=f'settings#maxfile_size')
        ],[
-       InlineKeyboardButton('🖼️ Thumbnail Settings',
+       InlineKeyboardButton('🖼️ Tʜᴜᴍʙɴᴀɪʟ Sᴇᴛᴛɪɴɢs',
                     callback_data=f'thumbnail#main')
        ],[
-       InlineKeyboardButton('Exᴛʀᴀ Sᴇᴛᴛɪɴɢs 🧪',
+       InlineKeyboardButton('⚙️ Exᴛʀᴀ Sᴇᴛᴛɪɴɢs',
                     callback_data=f'settings#extra')
        ],[
        InlineKeyboardButton('⫷ Bᴀᴄᴋ',
-                    callback_data=f'help')
+                    callback_data=f'settings#main')
        ]]
-  return InlineKeyboardMarkup(buttons)
+   return InlineKeyboardMarkup(buttons)
 
 def size_limit(limit):
    if str(limit) == "None":
