@@ -4,15 +4,16 @@
 
 import asyncio 
 import logging
+import os
 from database import Db, db
 from script import Script
 from pyrogram import Client, filters
+from pyrogram.errors import MessageNotModified
+from typing import Optional, Union
 
 logger = logging.getLogger(__name__)
 from .test import get_configs, update_configs, CLIENT, parse_buttons
-from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
-from .thumbnail import handle_thumbnail_settings, ThumbnailManager, thumbnail_buttons
-from .db import connect_user_db
+from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup, Message, CallbackQuery
 
 CLIENT = CLIENT()
 
@@ -50,7 +51,7 @@ async def settings_callback(bot, query):
     buttons.append([InlineKeyboardButton('🔘 Bᴜᴛᴛᴏɴ', callback_data="settings#button")])
     buttons.append([InlineKeyboardButton('🔍 Fɪʟᴛᴇʀs', callback_data="settings#filters")])
     buttons.append([InlineKeyboardButton('🗃 MᴏɴɢᴏDB', callback_data="settings#database")])
-    buttons.append([InlineKeyboardButton('🖼️ Tʜᴜᴍʙɴᴀɪʟ Sᴇᴛᴛɪɴɢs', callback_data="thumbnail#main")])
+    buttons.append([InlineKeyboardButton('🖼️ Tʜᴜᴍʙɴᴀɪʟ Sᴇᴛᴛɪɴɢs', callback_data="settings#thumbnail")])
     buttons.append([InlineKeyboardButton('⚙️ Exᴛʀᴀ Sᴇᴛᴛɪɴɢs', callback_data="settings#extra")])
     buttons.append([InlineKeyboardButton('⫷ Bᴀᴄᴋ', callback_data="help")])
     logger.info(f"Main settings buttons: {buttons}")
@@ -316,6 +317,7 @@ async def settings_callback(bot, query):
 
   elif type=="deleteurl":
      await update_configs(user_id, 'db_uri', None)
+     await query.answer("Custom thumbnail deleted successfully!")
      await query.message.edit_text(
         "**Successfully your database url deleted**",
         reply_markup=InlineKeyboardMarkup(buttons))
@@ -479,65 +481,126 @@ async def settings_callback(bot, query):
     alert = type.split('_')[1]
     await query.answer(alert, show_alert=True)
 
-@Client.on_callback_query(filters.regex(r'^thumbnail'))
-async def thumbnail_settings_query(bot, query):
-    from .thumbnail import handle_thumbnail_settings, ThumbnailManager, thumbnail_buttons
+  elif type == "thumbnail":
+    user_config = await get_configs(user_id)
+    remove_status = "✅ Enabled" if user_config.get('remove_thumbnails', False) else "❌ Disabled"
+    has_custom = "✅ Set" if user_config.get('custom_thumbnail') else "❌ Not Set"
     
-    logger.info(f"Thumbnail callback received: {query.data}")
-    try:
-        _, action = query.data.split("#")
-        logger.info(f"Thumbnail action: {action}")
-        
-        if action == 'main':
-            logger.info("Showing main thumbnail settings")
-            buttons = await thumbnail_buttons(query.from_user.id)
-            logger.info(f"Thumbnail buttons: {buttons}")
-            await query.message.edit_text(
-                "**🖼️ Thumbnail Settings**\n\nManage your thumbnail preferences here.",
-                reply_markup=buttons
-            )
-            return
-        
-        if action == 'toggle_removal':
-            user_config = await ThumbnailManager.get_user_thumbnail_config(query.from_user.id)
-            current_status = user_config.get('remove_thumbnails', False)
-            new_status = not current_status
-            
-            await ThumbnailManager.set_thumbnail_removal_preference(query.from_user.id, new_status)
-            
-            await query.message.edit_text(
-                "**🖼️ Thumbnail Settings**\n\nManage your thumbnail preferences here.",
-                reply_markup=await thumbnail_buttons(query.from_user.id)
-            )
-            await query.answer(f"Thumbnail Removal {'Enabled' if new_status else 'Disabled'}")
-            return
-        
-        if action == 'set_custom_thumbnail':
-            await query.message.delete()
-            thumbnail = await bot.ask(query.from_user.id, "Send a photo to set as custom thumbnail")
-            if thumbnail.media:
-                await ThumbnailManager.set_custom_thumbnail(query.from_user.id, thumbnail)
-                await thumbnail.reply_text("Custom thumbnail set successfully!")
-            else:
-                await thumbnail.reply_text("Invalid media type. Please send a photo.")
-            return
-        
-        if action == 'delete_custom_thumbnail':
-            await ThumbnailManager.delete_custom_thumbnail(query.from_user.id)
-            await query.answer("Custom thumbnail deleted successfully!")
-            return
-        
-        await handle_thumbnail_settings(bot, query, action)
-    except ValueError as ve:
-        logger.error(f"Invalid thumbnail action: {ve}")
-        await query.answer("Invalid thumbnail action", show_alert=True)
-    except Exception as e:
-        logger.error(f"Thumbnail settings query error: {e}", exc_info=True)
-        await query.answer("An unexpected error occurred", show_alert=True)
+    buttons = [
+        [InlineKeyboardButton(f'🔄 Auto-Remove Thumbnails: {remove_status}', callback_data="settings#toggle_removal")],
+        [InlineKeyboardButton(f'🖼️ Custom Thumbnail: {has_custom}', callback_data="settings#set_custom_thumbnail")],
+        [InlineKeyboardButton('🗑 Delete Custom Thumbnail', callback_data="settings#delete_custom_thumbnail")],
+        [InlineKeyboardButton('⫷ Bᴀᴄᴋ', callback_data="settings#main")]
+    ]
+    await query.message.edit_text(
+        "**🖼️ Tʜᴜᴍʙɴᴀɪʟ Sᴇᴛᴛɪɴɢs**\n\nManage your thumbnail preferences here.\n\n• Auto-Remove: When enabled, thumbnails will be removed from forwarded media.\n• Custom Thumbnail: Set a custom thumbnail to use for your media.",
+        reply_markup=InlineKeyboardMarkup(buttons))
 
-# Don't Remove Credit Tg - @VJ_Botz
-# Subscribe YouTube Channel For Amazing Bot https://youtube.com/@Tech_VJ
-# Ask Doubt on telegram @KingVJ01
+  elif type == "toggle_removal":
+    user_config = await get_configs(user_id)
+    current_status = user_config.get('remove_thumbnails', False)
+    new_status = not current_status
+    await update_configs(user_id, 'remove_thumbnails', new_status)
+    
+    # Get updated status for display
+    updated_config = await get_configs(user_id)
+    remove_status = "✅ Enabled" if updated_config.get('remove_thumbnails', False) else "❌ Disabled"
+    has_custom = "✅ Set" if updated_config.get('custom_thumbnail') else "❌ Not Set"
+    
+    buttons = [
+        [InlineKeyboardButton(f'🔄 Auto-Remove Thumbnails: {remove_status}', callback_data="settings#toggle_removal")],
+        [InlineKeyboardButton(f'🖼️ Custom Thumbnail: {has_custom}', callback_data="settings#set_custom_thumbnail")],
+        [InlineKeyboardButton('🗑 Delete Custom Thumbnail', callback_data="settings#delete_custom_thumbnail")],
+        [InlineKeyboardButton('⫷ Bᴀᴄᴋ', callback_data="settings#main")]
+    ]
+    
+    await query.answer(f"Thumbnail Removal {'Enabled' if new_status else 'Disabled'}")
+    await query.message.edit_text(
+        "**🖼️ Tʜᴜᴍʙɴᴀɪʟ Sᴇᴛᴛɪɴɢs**\n\nManage your thumbnail preferences here.\n\n• Auto-Remove: When enabled, thumbnails will be removed from forwarded media.\n• Custom Thumbnail: Set a custom thumbnail to use for your media.",
+        reply_markup=InlineKeyboardMarkup(buttons))
+
+  elif type == "set_custom_thumbnail":
+    await query.message.delete()
+    thumbnail_msg = await bot.ask(query.from_user.id, "Send a photo to set as custom thumbnail")
+    
+    if thumbnail_msg.photo:
+        try:
+            # Save the photo as custom thumbnail
+            await update_configs(user_id, 'custom_thumbnail', thumbnail_msg.photo.file_id)
+            await thumbnail_msg.reply_text("✅ Custom thumbnail set successfully!")
+            
+            # Get updated status for display
+            updated_config = await get_configs(user_id)
+            remove_status = "✅ Enabled" if updated_config.get('remove_thumbnails', False) else "❌ Disabled"
+            has_custom = "✅ Set" if updated_config.get('custom_thumbnail') else "❌ Not Set"
+            
+            buttons = [
+                [InlineKeyboardButton(f'🔄 Auto-Remove Thumbnails: {remove_status}', callback_data="settings#toggle_removal")],
+                [InlineKeyboardButton(f'🖼️ Custom Thumbnail: {has_custom}', callback_data="settings#set_custom_thumbnail")],
+                [InlineKeyboardButton('🗑 Delete Custom Thumbnail', callback_data="settings#delete_custom_thumbnail")],
+                [InlineKeyboardButton('⫷ Bᴀᴄᴋ', callback_data="settings#main")]
+            ]
+            
+            # Return to thumbnail settings menu
+            await bot.send_message(
+                user_id,
+                "**🖼️ Tʜᴜᴍʙɴᴀɪʟ Sᴇᴛᴛɪɴɢs**\n\nManage your thumbnail preferences here.\n\n• Auto-Remove: When enabled, thumbnails will be removed from forwarded media.\n• Custom Thumbnail: Set a custom thumbnail to use for your media.",
+                reply_markup=InlineKeyboardMarkup(buttons)
+            )
+        except Exception as e:
+            logger.error(f"Error setting custom thumbnail: {e}")
+            await thumbnail_msg.reply_text("❌ Failed to set custom thumbnail. Please try again.")
+    else:
+        await thumbnail_msg.reply_text("❌ Invalid media type. Please send a photo as thumbnail.")
+
+  elif type == "delete_custom_thumbnail":
+    await update_configs(user_id, 'custom_thumbnail', None)
+    
+    # Get updated status for display
+    updated_config = await get_configs(user_id)
+    remove_status = "✅ Enabled" if updated_config.get('remove_thumbnails', False) else "❌ Disabled"
+    has_custom = "✅ Set" if updated_config.get('custom_thumbnail') else "❌ Not Set"
+    
+    buttons = [
+        [InlineKeyboardButton(f'🔄 Auto-Remove Thumbnails: {remove_status}', callback_data="settings#toggle_removal")],
+        [InlineKeyboardButton(f'🖼️ Custom Thumbnail: {has_custom}', callback_data="settings#set_custom_thumbnail")],
+        [InlineKeyboardButton('🗑 Delete Custom Thumbnail', callback_data="settings#delete_custom_thumbnail")],
+        [InlineKeyboardButton('⫷ Bᴀᴄᴋ', callback_data="settings#main")]
+    ]
+    
+    await query.answer("Custom thumbnail deleted successfully!")
+    await query.message.edit_text(
+        "**🖼️ Tʜᴜᴍʙɴᴀɪʟ Sᴇᴛᴛɪɴɢs**\n\nManage your thumbnail preferences here.\n\n• Auto-Remove: When enabled, thumbnails will be removed from forwarded media.\n• Custom Thumbnail: Set a custom thumbnail to use for your media.",
+        reply_markup=InlineKeyboardMarkup(buttons))
+
+async def process_media_thumbnail(file_type: str, file_data: dict, user_id: int) -> dict:
+    """
+    Process media thumbnail based on user settings
+    
+    :param file_type: Type of media file
+    :param file_data: Media file data
+    :param user_id: User ID
+    :return: Updated file data
+    """
+    try:
+        # Check user-specific thumbnail removal settings
+        user_config = await get_configs(user_id)
+        
+        # Only remove thumbnail if user has enabled this setting
+        if user_config.get('remove_thumbnails', False):
+            file_data['thumbnail'] = None
+            logger.info(f'Removed thumbnail for {file_type} during forwarding')
+        
+        # Apply custom thumbnail if set and not removing thumbnails
+        elif not user_config.get('remove_thumbnails', False) and user_config.get('custom_thumbnail'):
+            file_data['thumbnail'] = user_config.get('custom_thumbnail')
+            logger.info(f'Applied custom thumbnail for {file_type} during forwarding')
+        
+        return file_data
+    
+    except Exception as e:
+        logger.error(f'Thumbnail processing error: {e}')
+        return file_data
 
 def main_buttons():
     logger.info("Generating main buttons")
@@ -548,7 +611,7 @@ def main_buttons():
         [InlineKeyboardButton('🔘 Bᴜᴛᴛᴏɴ', callback_data='settings#button')],
         [InlineKeyboardButton('🔍 Fɪʟᴛᴇʀs', callback_data='settings#filters')],
         [InlineKeyboardButton('🗃 MᴏɴɢᴏDB', callback_data='settings#database')],
-        [InlineKeyboardButton('🖼️ Tʜᴜᴍʙɴᴀɪʟ Sᴇᴛᴛɪɴɢs', callback_data='thumbnail#main')],
+        [InlineKeyboardButton('🖼️ Tʜᴜᴍʙɴᴀɪʟ Sᴇᴛᴛɪɴɢs', callback_data='settings#thumbnail')],
         [InlineKeyboardButton('⚙️ Exᴛʀᴀ Sᴇᴛᴛɪɴɢs', callback_data='settings#extra')],
         [InlineKeyboardButton('⫷ Bᴀᴄᴋ', callback_data='help')]
     ]
@@ -564,7 +627,7 @@ def extra_buttons():
                     callback_data=f'settings#maxfile_size')
        ],[
        InlineKeyboardButton('🖼️ Tʜᴜᴍʙɴᴀɪʟ Sᴇᴛᴛɪɴɢs',
-                    callback_data=f'thumbnail#main')
+                    callback_data=f'settings#thumbnail')
        ],[
        InlineKeyboardButton('⚙️ Exᴛʀᴀ Sᴇᴛᴛɪɴɢs',
                     callback_data=f'settings#extra')
