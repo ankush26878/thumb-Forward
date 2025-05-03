@@ -9,10 +9,50 @@ from typing import Optional, Union
 
 logger = logging.getLogger(__name__)
 
+# Thumbnail Configuration Management
+class ThumbnailManager:
+    @staticmethod
+    async def get_user_thumbnail_config(user_id: int) -> dict:
+        """
+        Retrieve user's thumbnail configuration
+        
+        :param user_id: Telegram user ID
+        :return: Dictionary of thumbnail settings
+        """
+        try:
+            user_config = await get_configs(user_id)
+            return {
+                'thumbnail': user_config.get('thumbnail'),
+                'default_thumbnail': user_config.get('default_thumbnail', False),
+                'watermark': user_config.get('watermark', False)
+            }
+        except Exception as e:
+            logger.error(f"Error retrieving thumbnail config for user {user_id}: {e}")
+            return {}
+    
+    @staticmethod
+    async def set_user_thumbnail(user_id: int, thumbnail_path: Optional[str] = None) -> bool:
+        """
+        Set or remove user's thumbnail
+        
+        :param user_id: Telegram user ID
+        :param thumbnail_path: Path to thumbnail image or None to remove
+        :return: Success status
+        """
+        try:
+            await update_configs(user_id, 'thumbnail', thumbnail_path)
+            return True
+        except Exception as e:
+            logger.error(f"Error setting thumbnail for user {user_id}: {e}")
+            return False
+
 async def handle_thumbnail_settings(bot: Client, query: Union[Message, CallbackQuery], action: str = None):
     try:
         # Determine user ID
         user_id = query.from_user.id if hasattr(query, 'from_user') else query.chat.id
+        
+        # Get current user thumbnail configuration
+        user_config = await ThumbnailManager.get_user_thumbnail_config(user_id)
         
         # Thumbnail upload handler
         if action == 'upload':
@@ -326,19 +366,42 @@ async def thumbnail_callback_handler(bot, query):
 async def process_media_thumbnail(file_type: str, file_data: dict, user_id: int) -> dict:
     try:
         # Retrieve user's thumbnail configuration
-        user_config = await db.get_user_config(user_id)
+        user_config = await ThumbnailManager.get_user_thumbnail_config(user_id)
         
-        # Default behavior: remove thumbnails for videos and documents
-        if file_type in ['video', 'document']:
+        # Thumbnail management buttons
+        thumbnail_buttons = [
+            [InlineKeyboardButton("🖼️ Set Custom Thumbnail", callback_data="thumbnail#custom")],
+            [InlineKeyboardButton("🔘 Remove Thumbnails", callback_data="thumbnail#default")]
+        ]
+        
+        # Always remove existing thumbnails for videos and documents
+        if file_type in ['video', 'document', 'photo']:
             file_data['thumbnail'] = None
+            logger.info(f'Removed existing thumbnail for {file_type} for user {user_id}')
         
-        # Apply custom thumbnail if set and not in default mode
-        if user_config and user_config.get('thumbnail'):
+        # Apply custom thumbnail if explicitly set and not in default mode
+        if (user_config.get('thumbnail') and 
+            not user_config.get('default_thumbnail') and 
+            file_type in ['video', 'document', 'photo']):
+            
             file_data['thumbnail'] = user_config['thumbnail']
+            logger.info(f'Applied custom thumbnail for {file_type} for user {user_id}')
+        
+        # Watermark processing (placeholder)
+        if user_config.get('watermark') and file_type in ['photo', 'video']:
+            try:
+                # Implement actual watermark logic here
+                logger.info(f'Watermark processing for {file_type}')
+            except Exception as watermark_error:
+                logger.error(f'Watermark processing error: {watermark_error}')
+        
+        # Add thumbnail management buttons
+        file_data['thumbnail_settings_buttons'] = InlineKeyboardMarkup(thumbnail_buttons)
         
         return file_data
+    
     except Exception as e:
-        logger.error(f"Thumbnail processing error: {e}")
+        logger.error(f'Thumbnail processing error for user {user_id}: {e}')
         return file_data
 
 def thumbnail_buttons(user_id=None):
