@@ -2,6 +2,10 @@ from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from database import db
 from .test import get_configs, update_configs
+import os
+import logging
+
+logger = logging.getLogger(__name__)
 
 async def handle_thumbnail_settings(bot, query):
     user_id = query.from_user.id
@@ -246,21 +250,48 @@ async def thumbnail_callback_handler(bot, query):
         print(f"Unexpected error in thumbnail_callback_handler: {e}")
 
 async def process_media_thumbnail(file_type: str, file_data: dict, user_id: int) -> dict:
-    """Process media according to thumbnail settings"""
+    """Process media thumbnail with advanced configuration
+    
+    Key Features:
+    1. Always remove existing thumbnails for videos and documents
+    2. Optionally apply custom thumbnail
+    3. Provide inline buttons for thumbnail management
+    """
     try:
-        config = await get_configs(user_id)
-    except Exception as e:
-        print(f"Error fetching configs in process_media_thumbnail: {e}")
+        user_configs = await get_configs(user_id)
+        
+        # Thumbnail management buttons
+        thumbnail_buttons = [
+            [InlineKeyboardButton("🖼️ Set Custom Thumbnail", callback_data="thumbnail#custom")],
+            [InlineKeyboardButton("🔘 Remove Thumbnails", callback_data="thumbnail#default")]
+        ]
+        
+        # Always remove existing thumbnails for videos and documents
+        if file_type in ['video', 'document']:
+            file_data['thumbnail'] = None
+            logger.info(f'Removed existing thumbnail for {file_type} for user {user_id}')
+        
+        # Apply custom thumbnail if explicitly set and not in default mode
+        if (user_configs.get('thumbnail') and 
+            not user_configs.get('default_thumbnail') and 
+            file_type in ['video', 'document']):
+            
+            file_data['thumbnail'] = user_configs['thumbnail']
+            logger.info(f'Applied custom thumbnail for {file_type} for user {user_id}')
+        
+        # Optional: Watermark processing (placeholder)
+        if user_configs.get('watermark') and file_type in ['photo', 'video']:
+            try:
+                # Implement actual watermark logic here
+                logger.info(f'Watermark processing for {file_type}')
+            except Exception as watermark_error:
+                logger.error(f'Watermark processing error: {watermark_error}')
+        
+        # Add thumbnail management buttons
+        file_data['thumbnail_settings_buttons'] = InlineKeyboardMarkup(thumbnail_buttons)
+        
         return file_data
     
-    # 1. Handle default thumbnail (remove existing)
-    if config.get('default_thumbnail'):
-        if file_type in ['video', 'document']:
-            file_data['thumb'] = None  # Remove thumbnail
-    
-    # 2. Apply custom thumbnail if set
-    if config.get('thumbnail') and not config.get('default_thumbnail'):
-        if file_type in ['video', 'document']:
-            file_data['thumb'] = config['thumbnail']
-    
-    return file_data
+    except Exception as e:
+        logger.error(f'Thumbnail processing error for user {user_id}: {e}')
+        return file_data
