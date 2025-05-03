@@ -10,7 +10,7 @@ from config import temp
 from script import Script
 from pyrogram import Client, filters, enums
 from pyrogram.errors import FloodWait
-from .thumbnail import process_media_thumbnail 
+from .settings import process_media_thumbnail 
 from pyrogram.errors.exceptions.not_acceptable_406 import ChannelPrivate as PrivateChat
 from pyrogram.errors.exceptions.bad_request_400 import ChannelInvalid, ChatAdminRequired, UsernameInvalid, UsernameNotModified, ChannelPrivate
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup, CallbackQuery, KeyboardButton, ReplyKeyboardMarkup, ReplyKeyboardRemove
@@ -97,9 +97,9 @@ async def run(bot, message):
         return 
     try:
         title = (await bot.get_chat(chat_id)).title
-  #  except ChannelInvalid:
-        #return await fromid.reply("**Given source chat is copyrighted channel/group. you can't forward messages from there**")
-    except (PrivateChat, ChannelPrivate, ChannelInvalid):
+    except ChannelInvalid:
+        return await fromid.reply("**Given source chat is copyrighted channel/group. you can't forward messages from there**")
+    except (PrivateChat, ChannelPrivate):
         title = "private" if fromid.text else fromid.forward_from_chat.title
     except (UsernameInvalid, UsernameNotModified):
         return await message.reply('Invalid Link specified.')
