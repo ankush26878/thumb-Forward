@@ -501,8 +501,11 @@ def main_buttons():
 
 def thumbnail_buttons(user_id):
     buttons = [
-        [InlineKeyboardButton('📸 Upload Thumbnail', callback_data='thumbnail#upload')],
-        [InlineKeyboardButton('🚫 Delete Thumbnail', callback_data='thumbnail#delete')],
+        [InlineKeyboardButton('✚ Add Thumbnail', callback_data='thumbnail#custom')],
+        [InlineKeyboardButton('👀 View Thumbnail', callback_data='thumbnail#view_custom')],
+        [InlineKeyboardButton('🗑 Remove Thumbnail', callback_data='thumbnail#remove_custom')],
+        [InlineKeyboardButton('🔘 Default Thumbnail', callback_data='thumbnail#default')],
+        [InlineKeyboardButton('💧 Watermark Settings', callback_data='thumbnail#watermark')],
         [InlineKeyboardButton('🔙 Back to Settings', callback_data='settings#extra')]
     ]
     return InlineKeyboardMarkup(buttons)
