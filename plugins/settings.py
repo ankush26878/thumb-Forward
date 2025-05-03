@@ -34,7 +34,7 @@ async def settings(client, message):
 @Client.on_callback_query(filters.regex(r'^thumbnail'))
 async def thumbnail_settings_query(bot, query):
     from .thumbnail import handle_thumbnail_settings
-    from .thumbnail import thumbnail_buttons
+    from .thumbnail import thumbnail_buttons, ThumbnailManager
     
     try:
         _, action = query.data.split("#")
@@ -46,7 +46,27 @@ async def thumbnail_settings_query(bot, query):
             )
             return
         
+        if action == 'toggle_removal':
+            user_config = await ThumbnailManager.get_user_thumbnail_config(query.from_user.id)
+            current_status = user_config.get('remove_thumbnails', False)
+            new_status = not current_status
+            
+            await ThumbnailManager.set_thumbnail_removal_preference(query.from_user.id, new_status)
+            
+            await query.message.edit_text(
+                "**🖼️ Thumbnail Settings**\n\nManage your thumbnail preferences here.",
+                reply_markup=thumbnail_buttons(query.from_user.id)
+            )
+            await query.answer(f"Thumbnail Removal {'Enabled' if new_status else 'Disabled'}")
+            return
+        
         await handle_thumbnail_settings(bot, query, action)
+    except ValueError as ve:
+        logger.error(f"Invalid thumbnail action: {ve}")
+        await query.answer("Invalid thumbnail action", show_alert=True)
+    except Exception as e:
+        logger.error(f"Thumbnail settings query error: {e}", exc_info=True)
+        await query.answer("An unexpected error occurred", show_alert=True)
     except Exception as e:
         logger.error(f"Thumbnail settings query error: {e}")
         await query.answer("An error occurred", show_alert=True)
@@ -498,28 +518,7 @@ def extra_buttons():
                     callback_data=f'settings#file_size')
        ],[
        InlineKeyboardButton('💾 Mᴀx Sɪᴢᴇ Lɪᴍɪᴛ',
-
-def main_buttons():
-    buttons = [
-        [InlineKeyboardButton('🔧 Extra Settings', callback_data='settings#extra')],
-        [InlineKeyboardButton('🔍 Filters', callback_data='settings#filters')],
-        [InlineKeyboardButton('🖼️ Thumbnail Settings', callback_data='thumbnail#settings')]
-    ]
-    return InlineKeyboardMarkup(buttons)
-
-def thumbnail_buttons(user_id):
-    buttons = [
-        [InlineKeyboardButton('✚ Add Thumbnail', callback_data='thumbnail#custom')],
-        [InlineKeyboardButton('👀 View Thumbnail', callback_data='thumbnail#view_custom')],
-        [InlineKeyboardButton('🗑 Remove Thumbnail', callback_data='thumbnail#remove_custom')],
-        [InlineKeyboardButton('🔘 Default Thumbnail', callback_data='thumbnail#default')],
-        [InlineKeyboardButton('💧 Watermark Settings', callback_data='thumbnail#watermark')],
-        [InlineKeyboardButton('🔙 Back to Settings', callback_data='settings#extra')]
-    ]
-    return InlineKeyboardMarkup(buttons)
-                    callback_data=f'settings#filters'),
-       InlineKeyboardButton('🗃 MᴏɴɢᴏDB',
-                    callback_data=f'settings#database')
+                    callback_data=f'settings#maxfile_size')
        ],[
        InlineKeyboardButton('Exᴛʀᴀ Sᴇᴛᴛɪɴɢs 🧪',
                     callback_data=f'settings#extra')
@@ -528,6 +527,38 @@ def thumbnail_buttons(user_id):
                     callback_data=f'help')
        ]]
   return InlineKeyboardMarkup(buttons)
+
+def main_buttons():
+    buttons = [
+        [InlineKeyboardButton('🔧 Extra Settings', callback_data='settings#extra')],
+        [InlineKeyboardButton('🔍 Filters', callback_data='settings#filters')],
+        [InlineKeyboardButton('🗃 MᴏɴɢᴏDB', callback_data='settings#database')],
+        [InlineKeyboardButton('🖼️ Thumbnail Settings', callback_data='thumbnail#main')],
+        [InlineKeyboardButton('⫷ Bᴀᴄᴋ', callback_data='help')]
+    ]
+    return InlineKeyboardMarkup(buttons)
+
+def thumbnail_buttons(user_id):
+    from .thumbnail import ThumbnailManager
+    import asyncio
+    
+    async def get_removal_status():
+        user_config = await ThumbnailManager.get_user_thumbnail_config(user_id)
+        return user_config.get('remove_thumbnails', False)
+    
+    removal_status = asyncio.run(get_removal_status())
+    removal_text = '✅ Enabled' if removal_status else '❌ Disabled'
+    
+    buttons = [
+        [InlineKeyboardButton('✚ Add Thumbnail', callback_data='thumbnail#custom')],
+        [InlineKeyboardButton('👀 View Thumbnail', callback_data='thumbnail#view_custom')],
+        [InlineKeyboardButton('🗑 Remove Thumbnail', callback_data='thumbnail#remove_custom')],
+        [InlineKeyboardButton('🔘 Default Thumbnail', callback_data='thumbnail#default')],
+        [InlineKeyboardButton('💧 Watermark Settings', callback_data='thumbnail#watermark')],
+        [InlineKeyboardButton(f'🔒 Remove Thumbnails: {removal_text}', callback_data='thumbnail#toggle_removal')],
+        [InlineKeyboardButton('🔙 Back to Settings', callback_data='settings#extra')]
+    ]
+    return InlineKeyboardMarkup(buttons)
 
 # Don't Remove Credit Tg - @VJ_Botz
 # Subscribe YouTube Channel For Amazing Bot https://youtube.com/@Tech_VJ
