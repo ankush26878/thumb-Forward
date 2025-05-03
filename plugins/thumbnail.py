@@ -4,57 +4,131 @@ from database import db
 from .test import get_configs, update_configs
 import os
 import logging
+import asyncio
+from typing import Optional, Union
 
 logger = logging.getLogger(__name__)
 
-async def handle_thumbnail_settings(bot, query):
-    user_id = query.from_user.id
+async def handle_thumbnail_settings(bot: Client, query: Union[Message, CallbackQuery], action: str = None):
     try:
-        data = await get_configs(user_id)
-    except Exception as e:
-        await query.answer("⚠️ Error fetching settings.", show_alert=True)
-        print(f"Error in handle_thumbnail_settings: {e}")
-        return
-    
-    # Main Thumbnail Menu
-    buttons = [
-        [
-            InlineKeyboardButton("🖼️ Custom Thumbnail", callback_data="thumbnail#custom"),
-            InlineKeyboardButton("🔘 Default Thumbnail", callback_data="thumbnail#default")
-        ],
-        [
-            InlineKeyboardButton("💧 Watermark Settings", callback_data="thumbnail#watermark")
-        ],
-        [
-            InlineKeyboardButton("🔙 Back", callback_data="settings#main")
-        ]
-    ]
-    
-    # Current status display
-    status_text = ""
-    if data.get('default_thumbnail'):
-        status_text += "\n\n🔘 Default Thumbnail: **ENABLED** (Removing all incoming thumbnails)"
-    else:
-        status_text += "\n\n🔘 Default Thumbnail: **DISABLED**"
-    
-    if data.get('thumbnail'):
-        status_text += "\n🖼️ Custom Thumbnail: **SET**"
-    else:
-        status_text += "\n🖼️ Custom Thumbnail: **NOT SET**"
+        # Determine user ID
+        user_id = query.from_user.id if hasattr(query, 'from_user') else query.chat.id
         
-    if data.get('watermark'):
-        status_text += "\n💧 Watermark: **ACTIVE**"
-    else:
-        status_text += "\n💧 Watermark: **INACTIVE**"
+        # Thumbnail upload handler
+        if action == 'upload':
+            await query.message.edit_text(
+                "🖼️ Please send an image to set as your default thumbnail. "
+                "Send a photo within the next 5 minutes."
+            )
+            
+            try:
+                thumbnail_msg = await bot.wait_for_message(
+                    chat_id=user_id, 
+                    filters=filters.photo, 
+                    timeout=300
+                )
+                
+                if thumbnail_msg and thumbnail_msg.photo:
+                    # Download thumbnail
+                    thumbnail_path = await bot.download_media(thumbnail_msg.photo)
+                    
+                    # Save thumbnail to user's configuration
+                    await db.update_thumbnail(user_id, thumbnail_path)
+                    
+                    await query.message.edit_text(
+                        "✅ Thumbnail successfully uploaded and set!",
+                        reply_markup=thumbnail_buttons(user_id)
+                    )
+                else:
+                    await query.message.edit_text(
+                        "❌ Invalid thumbnail. Please send a photo.",
+                        reply_markup=thumbnail_buttons(user_id)
+                    )
+            
+            except asyncio.TimeoutError:
+                await query.message.edit_text(
+                    "⏰ Thumbnail upload timed out. Please try again.",
+                    reply_markup=thumbnail_buttons(user_id)
+                )
+        
+        # Thumbnail deletion handler
+        elif action == 'delete':
+            # Remove user's thumbnail
+            await db.update_thumbnail(user_id, None)
+            await query.message.edit_text(
+                "🗑️ Your custom thumbnail has been deleted.",
+                reply_markup=thumbnail_buttons(user_id)
+            )
+        
+        # Thumbnail export handler
+        elif action == 'export':
+            user_config = await db.get_user_config(user_id)
+            thumbnail_path = user_config.get('thumbnail')
+            
+            if thumbnail_path and os.path.exists(thumbnail_path):
+                await bot.send_document(
+                    chat_id=user_id,
+                    document=thumbnail_path,
+                    caption="🖼️ Your current thumbnail"
+                )
+            else:
+                await query.message.edit_text(
+                    "❌ No thumbnail found to export.",
+                    reply_markup=thumbnail_buttons(user_id)
+                )
+        
+        # Thumbnail import handler
+        elif action == 'import':
+            await query.message.edit_text(
+                "📤 Please send the thumbnail image file you want to import."
+            )
+            
+            try:
+                import_msg = await bot.wait_for_message(
+                    chat_id=user_id, 
+                    filters=filters.document | filters.photo, 
+                    timeout=300
+                )
+                
+                if import_msg.photo or (import_msg.document and import_msg.document.mime_type.startswith('image/')):
+                    # Download imported thumbnail
+                    imported_thumbnail_path = await bot.download_media(import_msg)
+                    
+                    # Save imported thumbnail
+                    await db.update_thumbnail(user_id, imported_thumbnail_path)
+                    
+                    await query.message.edit_text(
+                        "✅ Thumbnail successfully imported!",
+                        reply_markup=thumbnail_buttons(user_id)
+                    )
+                else:
+                    await query.message.edit_text(
+                        "❌ Invalid file. Please send an image.",
+                        reply_markup=thumbnail_buttons(user_id)
+                    )
+            
+            except asyncio.TimeoutError:
+                await query.message.edit_text(
+                    "⏰ Thumbnail import timed out. Please try again.",
+                    reply_markup=thumbnail_buttons(user_id)
+                )
+        
+        # Default settings view
+        else:
+            user_config = await db.get_user_config(user_id)
+            thumbnail_status = "No custom thumbnail set" if not user_config.get('thumbnail') else "Custom thumbnail is set"
+            
+            await query.message.edit_text(
+                f"**🖼️ Thumbnail Settings**\n\n{thumbnail_status}\n\nManage your thumbnail preferences here.",
+                reply_markup=thumbnail_buttons(user_id)
+            )
     
-    try:
-        await query.message.edit_text(
-            f"<b>📁 Thumbnail Settings</b>\n\nConfigure how thumbnails are handled for forwarded media{status_text}",
-            reply_markup=InlineKeyboardMarkup(buttons)
-        )
     except Exception as e:
-        await query.answer("⚠️ Unable to update message.", show_alert=True)
-        print(f"Error editing thumbnail settings message: {e}")
+        logger.error(f"Thumbnail settings error: {e}")
+        await query.message.edit_text(
+            f"❌ An error occurred: {str(e)}",
+            reply_markup=thumbnail_buttons(user_id)
+        )
 
 async def handle_custom_thumbnail(bot, query):
     buttons = [
@@ -250,48 +324,29 @@ async def thumbnail_callback_handler(bot, query):
         print(f"Unexpected error in thumbnail_callback_handler: {e}")
 
 async def process_media_thumbnail(file_type: str, file_data: dict, user_id: int) -> dict:
-    """Process media thumbnail with advanced configuration
-    
-    Key Features:
-    1. Always remove existing thumbnails for videos and documents
-    2. Optionally apply custom thumbnail
-    3. Provide inline buttons for thumbnail management
-    """
     try:
-        user_configs = await get_configs(user_id)
+        # Retrieve user's thumbnail configuration
+        user_config = await db.get_user_config(user_id)
         
-        # Thumbnail management buttons
-        thumbnail_buttons = [
-            [InlineKeyboardButton("🖼️ Set Custom Thumbnail", callback_data="thumbnail#custom")],
-            [InlineKeyboardButton("🔘 Remove Thumbnails", callback_data="thumbnail#default")]
-        ]
-        
-        # Always remove existing thumbnails for videos and documents
+        # Default behavior: remove thumbnails for videos and documents
         if file_type in ['video', 'document']:
             file_data['thumbnail'] = None
-            logger.info(f'Removed existing thumbnail for {file_type} for user {user_id}')
         
-        # Apply custom thumbnail if explicitly set and not in default mode
-        if (user_configs.get('thumbnail') and 
-            not user_configs.get('default_thumbnail') and 
-            file_type in ['video', 'document']):
-            
-            file_data['thumbnail'] = user_configs['thumbnail']
-            logger.info(f'Applied custom thumbnail for {file_type} for user {user_id}')
-        
-        # Optional: Watermark processing (placeholder)
-        if user_configs.get('watermark') and file_type in ['photo', 'video']:
-            try:
-                # Implement actual watermark logic here
-                logger.info(f'Watermark processing for {file_type}')
-            except Exception as watermark_error:
-                logger.error(f'Watermark processing error: {watermark_error}')
-        
-        # Add thumbnail management buttons
-        file_data['thumbnail_settings_buttons'] = InlineKeyboardMarkup(thumbnail_buttons)
+        # Apply custom thumbnail if set and not in default mode
+        if user_config and user_config.get('thumbnail'):
+            file_data['thumbnail'] = user_config['thumbnail']
         
         return file_data
-    
     except Exception as e:
-        logger.error(f'Thumbnail processing error for user {user_id}: {e}')
+        logger.error(f"Thumbnail processing error: {e}")
         return file_data
+
+def thumbnail_buttons(user_id=None):
+    buttons = [
+        [InlineKeyboardButton('📸 Upload Thumbnail', callback_data='thumbnail#upload')],
+        [InlineKeyboardButton('🗑️ Delete Thumbnail', callback_data='thumbnail#delete')],
+        [InlineKeyboardButton('📤 Export Thumbnail', callback_data='thumbnail#export')],
+        [InlineKeyboardButton('📥 Import Thumbnail', callback_data='thumbnail#import')],
+        [InlineKeyboardButton('🔙 Back to Settings', callback_data='settings#extra')]
+    ]
+    return InlineKeyboardMarkup(buttons)
