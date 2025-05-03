@@ -202,27 +202,20 @@ async def handle_custom_thumbnail(bot, query):
     )
 
 async def handle_default_thumbnail(bot, query):
-    user_id = query.from_user.id
-    
-    buttons = [
-        [InlineKeyboardButton("✅ Enable Default Thumbnail", callback_data="thumbnail#enable_default")],
-        [InlineKeyboardButton("❌ Disable Default Thumbnail", callback_data="thumbnail#disable_default")],
-        [InlineKeyboardButton("🔙 Back", callback_data="thumbnail#main")]
-    ]
-    
+    """Handle default thumbnail settings menu"""
     try:
-        user_config = await ThumbnailManager.get_user_thumbnail_config(user_id)
-        default_enabled = user_config.get('default_thumbnail', False)
-        
-        status_text = "Enabled ✅" if default_enabled else "Disabled ❌"
-        
         await query.message.edit_text(
-            f"<b>🔘 Default Thumbnail</b>\n\nCurrent status: <b>{status_text}</b>\n\nWhen enabled, the default thumbnail will be used for all media if no custom thumbnail is set.",
-            reply_markup=InlineKeyboardMarkup(buttons)
+            "**🔘 Default Thumbnail Settings**\n\n"
+            "Enable or disable the default thumbnail feature.",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("✅ Eɴᴀʙʟᴇ Dᴇғᴀᴜʟᴛ Tʜᴜᴍʙɴᴀɪʟ", callback_data="thumbnail#enable_default")],
+                [InlineKeyboardButton("❌ Dɪsᴀʙʟᴇ Dᴇғᴀᴜʟᴛ Tʜᴜᴍʙɴᴀɪʟ", callback_data="thumbnail#disable_default")],
+                [InlineKeyboardButton("⫷ Bᴀᴄᴋ", callback_data="thumbnail#main")]
+            ])
         )
     except Exception as e:
-        await query.answer("⚠️ Unable to update message.", show_alert=True)
-        print(f"Error editing default thumbnail message: {e}")
+        logger.error(f"Error in handle_default_thumbnail: {e}")
+        await query.answer("An error occurred. Please try again.")
 
 async def handle_default_thumbnail_action(bot, query, enable: bool):
     user_id = query.from_user.id
@@ -259,21 +252,21 @@ async def handle_thumbnail_removal_toggle(bot, query):
         await query.answer("⚠️ Failed to update thumbnail removal setting.", show_alert=True)
 
 async def handle_watermark_settings(bot, query):
-    buttons = [
-        [InlineKeyboardButton("✚ Add Watermark", callback_data="thumbnail#add_watermark")],
-        [InlineKeyboardButton("👀 View Watermark", callback_data="thumbnail#view_watermark")],
-        [InlineKeyboardButton("🗑 Remove Watermark", callback_data="thumbnail#remove_watermark")],
-        [InlineKeyboardButton("🔙 Back", callback_data="thumbnail#main")]
-    ]
-    
+    """Handle watermark settings menu"""
     try:
         await query.message.edit_text(
-            "<b>💧 Watermark Settings</b>\n\nAdd a watermark that will be applied to photos and videos",
-            reply_markup=InlineKeyboardMarkup(buttons)
+            "**💧 Wᴀᴛᴇʀᴍᴀʀᴋ Sᴇᴛᴛɪɴɢs**\n\n"
+            "Manage your watermark preferences here.",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("✚ Aᴅᴅ Wᴀᴛᴇʀᴍᴀʀᴋ", callback_data="thumbnail#add_watermark")],
+                [InlineKeyboardButton("👀 Vɪᴇᴡ Wᴀᴛᴇʀᴍᴀʀᴋ", callback_data="thumbnail#view_watermark")],
+                [InlineKeyboardButton("🗑 Rᴇᴍᴏᴠᴇ Wᴀᴛᴇʀᴍᴀʀᴋ", callback_data="thumbnail#remove_watermark")],
+                [InlineKeyboardButton("⫷ Bᴀᴄᴋ", callback_data="thumbnail#main")]
+            ])
         )
     except Exception as e:
-        await query.answer("⚠️ Unable to update message.", show_alert=True)
-        print(f"Error editing watermark settings message: {e}")
+        logger.error(f"Error in handle_watermark_settings: {e}")
+        await query.answer("An error occurred. Please try again.")
 
 async def handle_watermark_action(bot, query, action):
     user_id = query.from_user.id
@@ -311,9 +304,9 @@ async def handle_watermark_action(bot, query, action):
                 await bot.send_photo(
                     query.message.chat.id,
                     data['watermark'],
-                    caption="Your current watermark",
+                    caption="Your current watermark image",
                     reply_markup=InlineKeyboardMarkup([
-                        [InlineKeyboardButton("🔙 Back", callback_data="thumbnail#watermark")]
+                        [InlineKeyboardButton("⫷ Bᴀᴄᴋ", callback_data="thumbnail#watermark")]
                     ])
                 )
             except Exception as e:
@@ -380,7 +373,7 @@ async def thumbnail_callback_handler(bot: Client, query: CallbackQuery):
                         data['thumbnail'],
                         caption="Your current custom thumbnail",
                         reply_markup=InlineKeyboardMarkup([
-                            [InlineKeyboardButton("🔙 Back", callback_data="thumbnail#custom")]
+                            [InlineKeyboardButton("🔙 Bᴀᴄᴋ", callback_data="thumbnail#custom")]
                         ])
                     )
                 except Exception as e:
@@ -434,13 +427,13 @@ async def thumbnail_buttons(user_id=None):
             logger.info("No user_id provided, defaulting to disabled")
         
         buttons = [
-            [InlineKeyboardButton("✚ Add Thumbnail", callback_data="thumbnail#custom")],
-            [InlineKeyboardButton("👀 View Thumbnail", callback_data="thumbnail#view_custom")],
-            [InlineKeyboardButton("🗑 Remove Thumbnail", callback_data="thumbnail#remove_custom")],
-            [InlineKeyboardButton("🔘 Default Thumbnail", callback_data="thumbnail#default")],
-            [InlineKeyboardButton(f"🔄 Auto-Remove Thumbnails: {remove_status}", callback_data="thumbnail#toggle_removal")],
-            [InlineKeyboardButton("💧 Watermark Settings", callback_data="thumbnail#watermark")],
-            [InlineKeyboardButton("🔙 Back", callback_data="settings#main")]
+            [InlineKeyboardButton("✚ Aᴅᴅ Tʜᴜᴍʙɴᴀɪʟ", callback_data="thumbnail#custom")],
+            [InlineKeyboardButton("👀 Vɪᴇᴡ Tʜᴜᴍʙɴᴀɪʟ", callback_data="thumbnail#view_custom")],
+            [InlineKeyboardButton("🗑 Rᴇᴍᴏᴠᴇ Tʜᴜᴍʙɴᴀɪʟ", callback_data="thumbnail#remove_custom")],
+            [InlineKeyboardButton("🔘 Dᴇғᴀᴜʟᴛ Tʜᴜᴍʙɴᴀɪʟ", callback_data="thumbnail#default")],
+            [InlineKeyboardButton(f"🔄 Aᴜᴛᴏ-Rᴇᴍᴏᴠᴇ Tʜᴜᴍʙɴᴀɪʟs: {remove_status}", callback_data="thumbnail#toggle_removal")],
+            [InlineKeyboardButton("💧 Wᴀᴛᴇʀᴍᴀʀᴋ Sᴇᴛᴛɪɴɢs", callback_data="thumbnail#watermark")],
+            [InlineKeyboardButton("⫷ Bᴀᴄᴋ", callback_data="settings#main")]
         ]
         logger.info(f"Generated thumbnail buttons: {buttons}")
         return InlineKeyboardMarkup(buttons)
@@ -448,7 +441,7 @@ async def thumbnail_buttons(user_id=None):
         logger.error(f"Error generating thumbnail buttons: {e}", exc_info=True)
         # Fallback buttons
         buttons = [
-            [InlineKeyboardButton("✚ Add Thumbnail", callback_data="thumbnail#custom")],
-            [InlineKeyboardButton("🔙 Back", callback_data="settings#main")]
+            [InlineKeyboardButton("✚ Aᴅᴅ Tʜᴜᴍʙɴᴀɪʟ", callback_data="thumbnail#custom")],
+            [InlineKeyboardButton("⫷ Bᴀᴄᴋ", callback_data="settings#main")]
         ]
         return InlineKeyboardMarkup(buttons)
