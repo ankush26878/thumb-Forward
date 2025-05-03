@@ -34,7 +34,7 @@ async def settings_query(bot, query):
   buttons = [[InlineKeyboardButton('back', callback_data="settings#main")]]
   if type=="main":
      await query.message.edit_text(
-       "<b>Hᴇʀᴇ Is Tʜᴇ Sᴇᴛᴛɪɴɢs Pᴀɴᴇʟ⚙\n\nᴄʜᴀɴɢᴇ ʏᴏᴜʀ sᴇᴛᴛɪɴɢs ᴀs ʏᴏᴜʀ ᴡɪsʜ 👇</b>",
+       "<b>Hᴇʀᴇ Is Tʜᴇ Sᴇᴛᴛɪɴɢs Pᴀɴᴇʟ⚙\n\nᴄʜᴀɴɢᴇ ʏᴏᴜʀ sᴇᴛᴛɪɴɢs ᴀs ʏᴏᴜʀ �ᴡɪsʜ 👇</b>",
        reply_markup=main_buttons())
   elif type=="extra":
        await query.message.edit_text(
@@ -211,6 +211,98 @@ async def settings_query(bot, query):
      await update_configs(user_id, 'caption', caption.text)
      await caption.reply_text(
         "<b>successfully updated</b>",
+        reply_markup=InlineKeyboardMarkup(buttons))
+
+  elif type=="thumbnail":
+     buttons = []
+     thumbnail = (await get_configs(user_id))['thumbnail']
+     if thumbnail is None:
+        buttons.append([InlineKeyboardButton('✚ Add Thumbnail ✚', 
+                      callback_data="settings#addthumbnail")])
+     else:
+        buttons.append([InlineKeyboardButton('👀 See Thumbnail', 
+                      callback_data="settings#seethumbnail")])
+        buttons[-1].append(InlineKeyboardButton('🗑️ Delete Thumbnail', 
+                      callback_data="settings#deletethumbnail"))
+     buttons.append([InlineKeyboardButton('back', 
+                      callback_data="settings#main")])
+     await query.message.edit_text(
+        "<b><u>CUSTOM THUMBNAIL</b></u>\n\n<b>You can set a custom thumbnail that will be applied to videos and documents.</b>",
+        reply_markup=InlineKeyboardMarkup(buttons))
+
+  elif type=="seethumbnail":   
+     await query.message.delete()
+     data = await get_configs(user_id)
+     await bot.send_photo(query.message.chat.id, data['thumbnail'], caption="<b>Your Current Thumbnail</b>",
+                         reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton('back', callback_data="settings#thumbnail")]]))
+
+  elif type=="deletethumbnail":
+     await update_configs(user_id, 'thumbnail', None)
+     await query.message.edit_text(
+        "<b>Thumbnail successfully removed</b>",
+        reply_markup=InlineKeyboardMarkup(buttons))
+
+  elif type=="addthumbnail":
+     await query.message.delete()
+     ask = await bot.ask(query.message.chat.id, "<b>Send your thumbnail photo (as a photo not as file)\n/cancel - cancel this process</b>")
+     if ask.text=="/cancel":
+        return await ask.reply_text(
+                  "<b>process canceled !</b>",
+                  reply_markup=InlineKeyboardMarkup(buttons))
+     if not ask.photo:
+        return await ask.reply_text(
+                  "<b>Please send as photo not as file</b>",
+                  reply_markup=InlineKeyboardMarkup(buttons))
+     file_id = ask.photo.file_id
+     await update_configs(user_id, 'thumbnail', file_id)
+     await ask.reply_text(
+        "<b>Thumbnail successfully set</b>",
+        reply_markup=InlineKeyboardMarkup(buttons))
+
+  elif type=="watermark":
+     buttons = []
+     watermark = (await get_configs(user_id))['watermark']
+     if watermark is None:
+        buttons.append([InlineKeyboardButton('✚ Add Watermark ✚', 
+                      callback_data="settings#addwatermark")])
+     else:
+        buttons.append([InlineKeyboardButton('👀 See Watermark', 
+                      callback_data="settings#seewatermark")])
+        buttons[-1].append(InlineKeyboardButton('🗑️ Delete Watermark', 
+                      callback_data="settings#deletewatermark"))
+     buttons.append([InlineKeyboardButton('back', 
+                      callback_data="settings#main")])
+     await query.message.edit_text(
+        "<b><u>CUSTOM WATERMARK</b></u>\n\n<b>You can set a custom watermark that will be applied to videos and photos.</b>",
+        reply_markup=InlineKeyboardMarkup(buttons))
+
+  elif type=="seewatermark":   
+     await query.message.delete()
+     data = await get_configs(user_id)
+     await bot.send_photo(query.message.chat.id, data['watermark'], caption="<b>Your Current Watermark</b>",
+                         reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton('back', callback_data="settings#watermark")]]))
+
+  elif type=="deletewatermark":
+     await update_configs(user_id, 'watermark', None)
+     await query.message.edit_text(
+        "<b>Watermark successfully removed</b>",
+        reply_markup=InlineKeyboardMarkup(buttons))
+
+  elif type=="addwatermark":
+     await query.message.delete()
+     ask = await bot.ask(query.message.chat.id, "<b>Send your watermark photo (as a photo not as file)\n/cancel - cancel this process</b>")
+     if ask.text=="/cancel":
+        return await ask.reply_text(
+                  "<b>process canceled !</b>",
+                  reply_markup=InlineKeyboardMarkup(buttons))
+     if not ask.photo:
+        return await ask.reply_text(
+                  "<b>Please send as photo not as file</b>",
+                  reply_markup=InlineKeyboardMarkup(buttons))
+     file_id = ask.photo.file_id
+     await update_configs(user_id, 'watermark', file_id)
+     await ask.reply_text(
+        "<b>Watermark successfully set</b>",
         reply_markup=InlineKeyboardMarkup(buttons))
 
   elif type=="button":
@@ -496,6 +588,11 @@ def main_buttons():
        ],[
        InlineKeyboardButton('🖋️ Cᴀᴘᴛɪᴏɴ',
                     callback_data=f'settings#caption'),
+       InlineKeyboardButton('🖼️ Tʜᴜᴍʙɴᴀɪʟ',
+                    callback_data=f'settings#thumbnail')
+       ],[
+       InlineKeyboardButton('💧 Wᴀᴛᴇʀᴍᴀʀᴋ',
+                    callback_data=f'settings#watermark'),
        InlineKeyboardButton('⏹ Bᴜᴛᴛᴏɴ',
                     callback_data=f'settings#button')
        ],[
@@ -627,92 +724,3 @@ def size_button(size):
 # Ask Doubt on telegram @KingVJ01
 
 async def filters_buttons(user_id):
-  filter = await get_configs(user_id)
-  filters = filter['filters']
-  buttons = [[
-       InlineKeyboardButton('🏷️ Forward tag',
-                    callback_data=f'settings_#updatefilter-forward_tag-{filter["forward_tag"]}'),
-       InlineKeyboardButton('✅' if filter['forward_tag'] else '❌',
-                    callback_data=f'settings#updatefilter-forward_tag-{filter["forward_tag"]}')
-       ],[
-       InlineKeyboardButton('🖍️ Texts',
-                    callback_data=f'settings_#updatefilter-text-{filters["text"]}'),
-       InlineKeyboardButton('✅' if filters['text'] else '❌',
-                    callback_data=f'settings#updatefilter-text-{filters["text"]}')
-       ],[
-       InlineKeyboardButton('📁 Documents',
-                    callback_data=f'settings_#updatefilter-document-{filters["document"]}'),
-       InlineKeyboardButton('✅' if filters['document'] else '❌',
-                    callback_data=f'settings#updatefilter-document-{filters["document"]}')
-       ],[
-       InlineKeyboardButton('🎞️ Videos',
-                    callback_data=f'settings_#updatefilter-video-{filters["video"]}'),
-       InlineKeyboardButton('✅' if filters['video'] else '❌',
-                    callback_data=f'settings#updatefilter-video-{filters["video"]}')
-       ],[
-       InlineKeyboardButton('📷 Photos',
-                    callback_data=f'settings_#updatefilter-photo-{filters["photo"]}'),
-       InlineKeyboardButton('✅' if filters['photo'] else '❌',
-                    callback_data=f'settings#updatefilter-photo-{filters["photo"]}')
-       ],[
-       InlineKeyboardButton('🎧 Audios',
-                    callback_data=f'settings_#updatefilter-audio-{filters["audio"]}'),
-       InlineKeyboardButton('✅' if filters['audio'] else '❌',
-                    callback_data=f'settings#updatefilter-audio-{filters["audio"]}')
-       ],[
-       InlineKeyboardButton('⫷ back',
-                    callback_data="settings#main"),
-       InlineKeyboardButton('next ⫸',
-                    callback_data="settings#nextfilters")
-       ]]
-  return InlineKeyboardMarkup(buttons) 
-
-# Don't Remove Credit Tg - @VJ_Botz
-# Subscribe YouTube Channel For Amazing Bot https://youtube.com/@Tech_VJ
-# Ask Doubt on telegram @KingVJ01
-
-async def next_filters_buttons(user_id):
-  filter = await get_configs(user_id)
-  filters = filter['filters']
-  buttons = [[
-       ],[
-       InlineKeyboardButton('🎤 Voices',
-                    callback_data=f'settings_#updatefilter-voice-{filters["voice"]}'),
-       InlineKeyboardButton('✅' if filters['voice'] else '❌',
-                    callback_data=f'settings#updatefilter-voice-{filters["voice"]}')
-       ],[
-       InlineKeyboardButton('🎭 Animations',
-                    callback_data=f'settings_#updatefilter-animation-{filters["animation"]}'),
-       InlineKeyboardButton('✅' if filters['animation'] else '❌',
-                    callback_data=f'settings#updatefilter-animation-{filters["animation"]}')
-       ],[
-       InlineKeyboardButton('🃏 Stickers',
-                    callback_data=f'settings_#updatefilter-sticker-{filters["sticker"]}'),
-       InlineKeyboardButton('✅' if filters['sticker'] else '❌',
-                    callback_data=f'settings#updatefilter-sticker-{filters["sticker"]}')
-       ],[
-       InlineKeyboardButton('▶️ Skip duplicate',
-                    callback_data=f'settings_#updatefilter-duplicate-{filter["duplicate"]}'),
-       InlineKeyboardButton('✅' if filter['duplicate'] else '❌',
-                    callback_data=f'settings#updatefilter-duplicate-{filter["duplicate"]}')
-       ],[
-       InlineKeyboardButton('📊 Poll',
-                    callback_data=f'settings_#updatefilter-poll-{filters["poll"]}'),
-       InlineKeyboardButton('✅' if filters['poll'] else '❌',
-                    callback_data=f'settings#updatefilter-poll-{filters["poll"]}')
-       ],[
-       InlineKeyboardButton('🔒 Secure message',
-                    callback_data=f'settings_#updatefilter-protect-{filter["protect"]}'),
-       InlineKeyboardButton('✅' if filter['protect'] else '❌',
-                    callback_data=f'settings#updatefilter-protect-{filter["protect"]}')
-       ],[
-       InlineKeyboardButton('⫷ back', 
-                    callback_data="settings#filters"),
-       InlineKeyboardButton('End ⫸',
-                    callback_data="settings#main")
-       ]]
-  return InlineKeyboardMarkup(buttons) 
-
-# Don't Remove Credit Tg - @VJ_Botz
-# Subscribe YouTube Channel For Amazing Bot https://youtube.com/@Tech_VJ
-# Ask Doubt on telegram @KingVJ01
