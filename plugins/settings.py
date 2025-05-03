@@ -31,41 +31,30 @@ async def settings(client, message):
 # Subscribe YouTube Channel For Amazing Bot https://youtube.com/@Tech_VJ
 # Ask Doubt on telegram @KingVJ01
 
-@Client.on_callback_query(filters.regex(r'^thumbnail'))
-async def thumbnail_settings_query(bot, query):
-    from .thumbnail import handle_thumbnail_settings, ThumbnailManager, thumbnail_buttons
-    
-    try:
-        _, action = query.data.split("#")
-        
-        if action == 'main':
-            await query.message.edit_text(
-                "**🖼️ Thumbnail Settings**\n\nManage your thumbnail preferences here.",
-                reply_markup=await thumbnail_buttons(query.from_user.id)
-            )
-            return
-        
-        if action == 'toggle_removal':
-            user_config = await ThumbnailManager.get_user_thumbnail_config(query.from_user.id)
-            current_status = user_config.get('remove_thumbnails', False)
-            new_status = not current_status
-            
-            await ThumbnailManager.set_thumbnail_removal_preference(query.from_user.id, new_status)
-            
-            await query.message.edit_text(
-                "**🖼️ Thumbnail Settings**\n\nManage your thumbnail preferences here.",
-                reply_markup=await thumbnail_buttons(query.from_user.id)
-            )
-            await query.answer(f"Thumbnail Removal {'Enabled' if new_status else 'Disabled'}")
-            return
-        
-        await handle_thumbnail_settings(bot, query, action)
-    except ValueError as ve:
-        logger.error(f"Invalid thumbnail action: {ve}")
-        await query.answer("Invalid thumbnail action", show_alert=True)
-    except Exception as e:
-        logger.error(f"Thumbnail settings query error: {e}", exc_info=True)
-        await query.answer("An unexpected error occurred", show_alert=True)
+@Client.on_callback_query(filters.regex(r'^settings'))
+async def settings_callback(bot, query):
+  user_id = query.from_user.id
+  try:
+    _, type = query.data.split("#")
+  except:
+    type = "main"
+  
+  if type=="main":
+    buttons = [[InlineKeyboardButton('🤖 Bᴏᴛs', callback_data="settings#bots")]]
+    buttons.append([InlineKeyboardButton('📢 Cʜᴀɴɴᴇʟs', callback_data="settings#channels")])
+    buttons.append([InlineKeyboardButton('📝 Cᴀᴘᴛɪᴏɴ', callback_data="settings#caption")])
+    buttons.append([InlineKeyboardButton('🔘 Bᴜᴛᴛᴏɴ', callback_data="settings#button")])
+    buttons.append([InlineKeyboardButton('🔍 Fɪʟᴛᴇʀs', callback_data="settings#filters")])
+    buttons.append([InlineKeyboardButton('🗃 MᴏɴɢᴏDB', callback_data="settings#database")])
+    buttons.append([InlineKeyboardButton('🖼️ Tʜᴜᴍʙɴᴀɪʟ', callback_data="thumbnail#main")])
+    buttons.append([InlineKeyboardButton('⚙️ Exᴛʀᴀ Sᴇᴛᴛɪɴɢs', callback_data="settings#extra")])
+    buttons.append([InlineKeyboardButton('⫷ Bᴀᴄᴋ', callback_data="help")])
+    await query.message.edit_text(
+      "<b>Hᴇʀᴇ Is Tʜᴇ Sᴇᴛᴛɪɴɢs Pᴀɴᴇʟ⚙\n\nᴄʜᴀɴɢᴇ ʏᴏᴜʀ sᴇᴛᴛɪɴɢs ᴀs ʏᴏᴜʀ ᴡɪsʜ 👇</b>",
+      reply_markup=InlineKeyboardMarkup(buttons))
+
+  elif type=="bots":
+     buttons = []
      _bot = await db.get_bot(user_id)
      usr_bot = await db.get_userbot(user_id)
      if _bot is not None:
@@ -485,6 +474,42 @@ async def thumbnail_settings_query(bot, query):
     alert = type.split('_')[1]
     await query.answer(alert, show_alert=True)
 
+@Client.on_callback_query(filters.regex(r'^thumbnail'))
+async def thumbnail_settings_query(bot, query):
+    from .thumbnail import handle_thumbnail_settings, ThumbnailManager, thumbnail_buttons
+    
+    try:
+        _, action = query.data.split("#")
+        
+        if action == 'main':
+            await query.message.edit_text(
+                "**🖼️ Thumbnail Settings**\n\nManage your thumbnail preferences here.",
+                reply_markup=await thumbnail_buttons(query.from_user.id)
+            )
+            return
+        
+        if action == 'toggle_removal':
+            user_config = await ThumbnailManager.get_user_thumbnail_config(query.from_user.id)
+            current_status = user_config.get('remove_thumbnails', False)
+            new_status = not current_status
+            
+            await ThumbnailManager.set_thumbnail_removal_preference(query.from_user.id, new_status)
+            
+            await query.message.edit_text(
+                "**🖼️ Thumbnail Settings**\n\nManage your thumbnail preferences here.",
+                reply_markup=await thumbnail_buttons(query.from_user.id)
+            )
+            await query.answer(f"Thumbnail Removal {'Enabled' if new_status else 'Disabled'}")
+            return
+        
+        await handle_thumbnail_settings(bot, query, action)
+    except ValueError as ve:
+        logger.error(f"Invalid thumbnail action: {ve}")
+        await query.answer("Invalid thumbnail action", show_alert=True)
+    except Exception as e:
+        logger.error(f"Thumbnail settings query error: {e}", exc_info=True)
+        await query.answer("An unexpected error occurred", show_alert=True)
+
 # Don't Remove Credit Tg - @VJ_Botz
 # Subscribe YouTube Channel For Amazing Bot https://youtube.com/@Tech_VJ
 # Ask Doubt on telegram @KingVJ01
@@ -496,6 +521,9 @@ def extra_buttons():
        ],[
        InlineKeyboardButton('💾 Mᴀx Sɪᴢᴇ Lɪᴍɪᴛ',
                     callback_data=f'settings#maxfile_size')
+       ],[
+       InlineKeyboardButton('🖼️ Thumbnail Settings',
+                    callback_data=f'thumbnail#main')
        ],[
        InlineKeyboardButton('Exᴛʀᴀ Sᴇᴛᴛɪɴɢs 🧪',
                     callback_data=f'settings#extra')
