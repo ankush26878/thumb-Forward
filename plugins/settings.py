@@ -11,7 +11,7 @@ from pyrogram import Client, filters
 logger = logging.getLogger(__name__)
 from .test import get_configs, update_configs, CLIENT, parse_buttons
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
-from .thumbnail import handle_thumbnail_settings
+from .thumbnail import handle_thumbnail_settings, ThumbnailManager, thumbnail_buttons
 from .db import connect_user_db
 
 CLIENT = CLIENT()
@@ -33,8 +33,7 @@ async def settings(client, message):
 
 @Client.on_callback_query(filters.regex(r'^thumbnail'))
 async def thumbnail_settings_query(bot, query):
-    from .thumbnail import handle_thumbnail_settings
-    from .thumbnail import thumbnail_buttons, ThumbnailManager
+    from .thumbnail import handle_thumbnail_settings, ThumbnailManager, thumbnail_buttons
     
     try:
         _, action = query.data.split("#")
@@ -42,7 +41,7 @@ async def thumbnail_settings_query(bot, query):
         if action == 'main':
             await query.message.edit_text(
                 "**🖼️ Thumbnail Settings**\n\nManage your thumbnail preferences here.",
-                reply_markup=thumbnail_buttons(query.from_user.id)
+                reply_markup=await thumbnail_buttons(query.from_user.id)
             )
             return
         
@@ -55,7 +54,7 @@ async def thumbnail_settings_query(bot, query):
             
             await query.message.edit_text(
                 "**🖼️ Thumbnail Settings**\n\nManage your thumbnail preferences here.",
-                reply_markup=thumbnail_buttons(query.from_user.id)
+                reply_markup=await thumbnail_buttons(query.from_user.id)
             )
             await query.answer(f"Thumbnail Removal {'Enabled' if new_status else 'Disabled'}")
             return
@@ -67,28 +66,6 @@ async def thumbnail_settings_query(bot, query):
     except Exception as e:
         logger.error(f"Thumbnail settings query error: {e}", exc_info=True)
         await query.answer("An unexpected error occurred", show_alert=True)
-    except Exception as e:
-        logger.error(f"Thumbnail settings query error: {e}")
-        await query.answer("An error occurred", show_alert=True)
-    
-    elif action == 'delete':
-        # Remove thumbnail from user config
-        await db.update_thumbnail(user_id, None)
-        await query.message.edit_text(
-            "🗑️ Your custom thumbnail has been deleted.",
-            reply_markup=thumbnail_buttons(user_id)
-        )
-
-  if type=="main":
-     await query.message.edit_text(
-       "<b>Hᴇʀᴇ Is Tʜᴇ Sᴇᴛᴛɪɴɢs Pᴀɴᴇʟ⚙\n\nᴄʜᴀɴɢᴇ ʏᴏᴜʀ sᴇᴛᴛɪɴɢs ᴀs ʏᴏᴜʀ ᴡɪsʜ 👇</b>",
-       reply_markup=main_buttons())
-  elif type=="extra":
-       await query.message.edit_text(
-         "<b>Hᴇʀᴇ Is Tʜᴇ Exᴛʀᴀ Sᴇᴛᴛɪɴɢs Pᴀɴᴇʟ⚙</b>",
-         reply_markup=extra_buttons())
-  elif type=="bots":
-     buttons = [] 
      _bot = await db.get_bot(user_id)
      usr_bot = await db.get_userbot(user_id)
      if _bot is not None:
@@ -315,7 +292,7 @@ async def thumbnail_settings_query(bot, query):
      buttons.append([InlineKeyboardButton('back', 
                       callback_data="settings#main")])
      await query.message.edit_text(
-        "<b><u>DATABASE</u>\n\nDatabase is required for store your duplicate messages permenant. other wise stored duplicate media may be disappeared when after bot restart.</b>",
+        "<b><u>DATABASE</u></b>\n\nDatabase is required for store your duplicate messages permenant. other wise stored duplicate media may be disappeared when after bot restart.</b>",
         reply_markup=InlineKeyboardMarkup(buttons))
 
   elif type=="addurl":
@@ -538,32 +515,6 @@ def main_buttons():
     ]
     return InlineKeyboardMarkup(buttons)
 
-def thumbnail_buttons(user_id):
-    from .thumbnail import ThumbnailManager
-    import asyncio
-    
-    async def get_removal_status():
-        user_config = await ThumbnailManager.get_user_thumbnail_config(user_id)
-        return user_config.get('remove_thumbnails', False)
-    
-    removal_status = asyncio.run(get_removal_status())
-    removal_text = '✅ Enabled' if removal_status else '❌ Disabled'
-    
-    buttons = [
-        [InlineKeyboardButton('✚ Add Thumbnail', callback_data='thumbnail#custom')],
-        [InlineKeyboardButton('👀 View Thumbnail', callback_data='thumbnail#view_custom')],
-        [InlineKeyboardButton('🗑 Remove Thumbnail', callback_data='thumbnail#remove_custom')],
-        [InlineKeyboardButton('🔘 Default Thumbnail', callback_data='thumbnail#default')],
-        [InlineKeyboardButton('💧 Watermark Settings', callback_data='thumbnail#watermark')],
-        [InlineKeyboardButton(f'🔒 Remove Thumbnails: {removal_text}', callback_data='thumbnail#toggle_removal')],
-        [InlineKeyboardButton('🔙 Back to Settings', callback_data='settings#extra')]
-    ]
-    return InlineKeyboardMarkup(buttons)
-
-# Don't Remove Credit Tg - @VJ_Botz
-# Subscribe YouTube Channel For Amazing Bot https://youtube.com/@Tech_VJ
-# Ask Doubt on telegram @KingVJ01
-
 def size_limit(limit):
    if str(limit) == "None":
       return None, ""
@@ -571,10 +522,6 @@ def size_limit(limit):
       return True, "more than"
    else:
       return False, "less than"
-
-# Don't Remove Credit Tg - @VJ_Botz
-# Subscribe YouTube Channel For Amazing Bot https://youtube.com/@Tech_VJ
-# Ask Doubt on telegram @KingVJ01
 
 def extract_btn(datas):
     i = 0
@@ -591,10 +538,6 @@ def extract_btn(datas):
             btn[-1].append(InlineKeyboardButton(data, f'settings#alert_{data}'))
             i += 1
     return btn 
-
-# Don't Remove Credit Tg - @VJ_Botz
-# Subscribe YouTube Channel For Amazing Bot https://youtube.com/@Tech_VJ
-# Ask Doubt on telegram @KingVJ01
 
 def maxsize_button(size):
   buttons = [[
@@ -631,10 +574,6 @@ def maxsize_button(size):
      ]]
   return InlineKeyboardMarkup(buttons)
 
-# Don't Remove Credit Tg - @VJ_Botz
-# Subscribe YouTube Channel For Amazing Bot https://youtube.com/@Tech_VJ
-# Ask Doubt on telegram @KingVJ01
-
 def size_button(size):
   buttons = [[
        InlineKeyboardButton('💾 Min Size Limit',
@@ -669,10 +608,6 @@ def size_button(size):
                     callback_data="settings#extra")
      ]]
   return InlineKeyboardMarkup(buttons)
-
-# Don't Remove Credit Tg - @VJ_Botz
-# Subscribe YouTube Channel For Amazing Bot https://youtube.com/@Tech_VJ
-# Ask Doubt on telegram @KingVJ01
 
 async def filters_buttons(user_id):
   filter = await get_configs(user_id)
@@ -715,10 +650,6 @@ async def filters_buttons(user_id):
        ]]
   return InlineKeyboardMarkup(buttons) 
 
-# Don't Remove Credit Tg - @VJ_Botz
-# Subscribe YouTube Channel For Amazing Bot https://youtube.com/@Tech_VJ
-# Ask Doubt on telegram @KingVJ01
-
 async def next_filters_buttons(user_id):
   filter = await get_configs(user_id)
   filters = filter['filters']
@@ -760,7 +691,3 @@ async def next_filters_buttons(user_id):
                     callback_data="settings#main")
        ]]
   return InlineKeyboardMarkup(buttons) 
-
-# Don't Remove Credit Tg - @VJ_Botz
-# Subscribe YouTube Channel For Amazing Bot https://youtube.com/@Tech_VJ
-# Ask Doubt on telegram @KingVJ01
