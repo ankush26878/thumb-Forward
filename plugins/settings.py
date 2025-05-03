@@ -22,9 +22,12 @@ CLIENT = CLIENT()
 
 @Client.on_message(filters.command('settings'))
 async def settings(client, message):
+   logger.info("Settings command received, generating main buttons")
+   buttons = main_buttons()
+   logger.info(f"Main buttons generated: {buttons}")
    await message.reply_text(
      "<b>Hᴇʀᴇ Is Tʜᴇ Sᴇᴛᴛɪɴɢs Pᴀɴᴇʟ⚙\n\nᴄʜᴀɴɢᴇ ʏᴏᴜʀ sᴇᴛᴛɪɴɢs ᴀs ʏᴏᴜʀ ᴡɪsʜ 👇</b>",
-     reply_markup=main_buttons()
+     reply_markup=buttons
      )
 
 # Don't Remove Credit Tg - @VJ_Botz
@@ -40,6 +43,7 @@ async def settings_callback(bot, query):
     type = "main"
   
   if type=="main":
+    logger.info("Main settings menu requested")
     buttons = [[InlineKeyboardButton('🤖 Bᴏᴛs', callback_data="settings#bots")]]
     buttons.append([InlineKeyboardButton('📢 Cʜᴀɴɴᴇʟs', callback_data="settings#channels")])
     buttons.append([InlineKeyboardButton('📝 Cᴀᴘᴛɪᴏɴ', callback_data="settings#caption")])
@@ -49,6 +53,7 @@ async def settings_callback(bot, query):
     buttons.append([InlineKeyboardButton('🖼️ Tʜᴜᴍʙɴᴀɪʟ', callback_data="thumbnail#main")])
     buttons.append([InlineKeyboardButton('⚙️ Exᴛʀᴀ Sᴇᴛᴛɪɴɢs', callback_data="settings#extra")])
     buttons.append([InlineKeyboardButton('⫷ Bᴀᴄᴋ', callback_data="help")])
+    logger.info(f"Main settings buttons: {buttons}")
     await query.message.edit_text(
       "<b>Hᴇʀᴇ Is Tʜᴇ Sᴇᴛᴛɪɴɢs Pᴀɴᴇʟ⚙\n\nᴄʜᴀɴɢᴇ ʏᴏᴜʀ sᴇᴛᴛɪɴɢs ᴀs ʏᴏᴜʀ ᴡɪsʜ 👇</b>",
       reply_markup=InlineKeyboardMarkup(buttons))
@@ -72,8 +77,8 @@ async def settings_callback(bot, query):
      buttons.append([InlineKeyboardButton('back', 
                       callback_data="settings#main")])
      await query.message.edit_text(
-       "<b><u>My Bots</b></u>\n\n<b>You can manage your bots in here</b>",
-       reply_markup=InlineKeyboardMarkup(buttons))
+        "<b><u>My Bots</b></u>\n\n<b>You can manage your bots in here</b>",
+        reply_markup=InlineKeyboardMarkup(buttons))
 
   elif type=="addbot":
      await query.message.delete()
@@ -149,13 +154,13 @@ async def settings_callback(bot, query):
      await query.message.edit_text(
         "<b>successfully updated</b>",
         reply_markup=InlineKeyboardMarkup(buttons))
-     
+
   elif type=="removeuserbot":
      await db.remove_userbot(user_id)
      await query.message.edit_text(
         "<b>successfully updated</b>",
         reply_markup=InlineKeyboardMarkup(buttons))
-     
+
   elif type.startswith("editchannels"): 
      chat_id = type.split('_')[1]
      chat = await db.get_channel_details(user_id, chat_id)
@@ -478,13 +483,18 @@ async def settings_callback(bot, query):
 async def thumbnail_settings_query(bot, query):
     from .thumbnail import handle_thumbnail_settings, ThumbnailManager, thumbnail_buttons
     
+    logger.info(f"Thumbnail callback received: {query.data}")
     try:
         _, action = query.data.split("#")
+        logger.info(f"Thumbnail action: {action}")
         
         if action == 'main':
+            logger.info("Showing main thumbnail settings")
+            buttons = await thumbnail_buttons(query.from_user.id)
+            logger.info(f"Thumbnail buttons: {buttons}")
             await query.message.edit_text(
                 "**🖼️ Thumbnail Settings**\n\nManage your thumbnail preferences here.",
-                reply_markup=await thumbnail_buttons(query.from_user.id)
+                reply_markup=buttons
             )
             return
         
@@ -502,6 +512,21 @@ async def thumbnail_settings_query(bot, query):
             await query.answer(f"Thumbnail Removal {'Enabled' if new_status else 'Disabled'}")
             return
         
+        if action == 'set_custom_thumbnail':
+            await query.message.delete()
+            thumbnail = await bot.ask(query.from_user.id, "Send a photo to set as custom thumbnail")
+            if thumbnail.media:
+                await ThumbnailManager.set_custom_thumbnail(query.from_user.id, thumbnail)
+                await thumbnail.reply_text("Custom thumbnail set successfully!")
+            else:
+                await thumbnail.reply_text("Invalid media type. Please send a photo.")
+            return
+        
+        if action == 'delete_custom_thumbnail':
+            await ThumbnailManager.delete_custom_thumbnail(query.from_user.id)
+            await query.answer("Custom thumbnail deleted successfully!")
+            return
+        
         await handle_thumbnail_settings(bot, query, action)
     except ValueError as ve:
         logger.error(f"Invalid thumbnail action: {ve}")
@@ -513,6 +538,22 @@ async def thumbnail_settings_query(bot, query):
 # Don't Remove Credit Tg - @VJ_Botz
 # Subscribe YouTube Channel For Amazing Bot https://youtube.com/@Tech_VJ
 # Ask Doubt on telegram @KingVJ01
+
+def main_buttons():
+    logger.info("Generating main buttons")
+    buttons = [
+        [InlineKeyboardButton('🤖 Bᴏᴛs', callback_data='settings#bots')],
+        [InlineKeyboardButton('📢 Cʜᴀɴɴᴇʟs', callback_data='settings#channels')],
+        [InlineKeyboardButton('📝 Cᴀᴘᴛɪᴏɴ', callback_data='settings#caption')],
+        [InlineKeyboardButton('🔘 Bᴜᴛᴛᴏɴ', callback_data='settings#button')],
+        [InlineKeyboardButton('🔍 Fɪʟᴛᴇʀs', callback_data='settings#filters')],
+        [InlineKeyboardButton('🗃 MᴏɴɢᴏDB', callback_data='settings#database')],
+        [InlineKeyboardButton('🖼️ Tʜᴜᴍʙɴᴀɪʟ', callback_data='thumbnail#main')],
+        [InlineKeyboardButton('⚙️ Exᴛʀᴀ Sᴇᴛᴛɪɴɢs', callback_data='settings#extra')],
+        [InlineKeyboardButton('⫷ Bᴀᴄᴋ', callback_data='help')]
+    ]
+    logger.info(f"Main buttons: {buttons}")
+    return InlineKeyboardMarkup(buttons)
 
 def extra_buttons():
    buttons = [[
@@ -532,16 +573,6 @@ def extra_buttons():
                     callback_data=f'help')
        ]]
   return InlineKeyboardMarkup(buttons)
-
-def main_buttons():
-    buttons = [
-        [InlineKeyboardButton('🔧 Extra Settings', callback_data='settings#extra')],
-        [InlineKeyboardButton('🔍 Filters', callback_data='settings#filters')],
-        [InlineKeyboardButton('🗃 MᴏɴɢᴏDB', callback_data='settings#database')],
-        [InlineKeyboardButton('🖼️ Thumbnail Settings', callback_data='thumbnail#main')],
-        [InlineKeyboardButton('⫷ Bᴀᴄᴋ', callback_data='help')]
-    ]
-    return InlineKeyboardMarkup(buttons)
 
 def size_limit(limit):
    if str(limit) == "None":
