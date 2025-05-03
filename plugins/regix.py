@@ -19,6 +19,7 @@ from pyrogram.errors import FloodWait, MessageNotModified
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup, CallbackQuery, Message 
 from .db import connect_user_db
 from pyrogram.types import Message
+from .thumbnail import process_media_thumbnail
 
 # Don't Remove Credit Tg - @VJ_Botz
 # Subscribe YouTube Channel For Amazing Bot https://youtube.com/@Tech_VJ
@@ -186,43 +187,75 @@ async def pub_(bot, message):
 # Ask Doubt on telegram @KingVJ01
 
 async def copy(user, bot, msg, m, sts):
-   try:                               
-     if msg.get("media") and msg.get("caption"):
-        await bot.send_cached_media(
-              chat_id=sts.get('TO'),
-              file_id=msg.get("media"),
-              caption=msg.get("caption"),
-              reply_markup=msg.get('button'),
-              protect_content=msg.get("protect"))
-     else:
-        await bot.copy_message(
-              chat_id=sts.get('TO'),
-              from_chat_id=sts.get('FROM'),    
-              caption=msg.get("caption"),
-              message_id=msg.get("msg_id"),
-              reply_markup=msg.get('button'),
-              protect_content=msg.get("protect"))
-   except FloodWait as e:
-     await edit(user, m, 'ᴘʀᴏɢʀᴇssɪɴɢ', e.value, sts)
-     await asyncio.sleep(e.value)
-     await edit(user, m, 'ᴘʀᴏɢʀᴇssɪɴɢ', 5, sts)
-     await copy(user, bot, msg, m, sts)
-   except Exception as e:
-     print(e)
-     sts.add('deleted')
+    try:
+        media_type = media(msg)
+        if not media_type:
+            return await m.edit("❌ No media found to copy.")
+        
+        # Prepare file data for thumbnail processing
+        file_data = {
+            'type': media_type,
+            'thumbnail': None  # Placeholder for thumbnail
+        }
+        
+        # Process thumbnail
+        if msg.get("media"):
+            file_data['thumbnail'] = await process_media_thumbnail(msg)
+        
+        if msg.get("media") and msg.get("caption"):
+            await bot.send_cached_media(
+                  chat_id=sts.get('TO'),
+                  file_id=file_data['thumbnail'] or msg.get("media"),
+                  caption=msg.get("caption"),
+                  reply_markup=msg.get('button'),
+                  protect_content=msg.get("protect"))
+        else:
+            await bot.copy_message(
+                  chat_id=sts.get('TO'),
+                  from_chat_id=sts.get('FROM'),    
+                  caption=msg.get("caption"),
+                  message_id=msg.get("msg_id"),
+                  reply_markup=msg.get('button'),
+                  protect_content=msg.get("protect"))
+    except FloodWait as e:
+        await edit(user, m, 'ᴘʀᴏɢʀᴇssɪɴɢ', e.value, sts)
+        await asyncio.sleep(e.value)
+        await edit(user, m, 'ᴘʀᴏɢʀᴇssɪɴɢ', 5, sts)
+        await copy(user, bot, msg, m, sts)
+    except Exception as e:
+        print(e)
+        sts.add('deleted')
 
 # Don't Remove Credit Tg - @VJ_Botz
 # Subscribe YouTube Channel For Amazing Bot https://youtube.com/@Tech_VJ
 # Ask Doubt on telegram @KingVJ01
 
 async def forward(user, bot, msg, m, sts, protect):
-   try:                             
-     await bot.forward_messages(
-           chat_id=sts.get('TO'),
-           from_chat_id=sts.get('FROM'), 
-           protect_content=protect,
-           message_ids=msg)
-   except FloodWait as e:
+    try:
+        media_type = media(msg)
+        if not media_type:
+            return await m.edit("❌ No media found to forward.")
+        
+        # Prepare file data for thumbnail processing
+        file_data = {
+            'type': media_type,
+            'thumbnail': None  # Placeholder for thumbnail
+        }
+        
+        # Process thumbnail
+        if msg.get("media"):
+            file_data['thumbnail'] = await process_media_thumbnail(msg)
+        
+        await bot.forward_messages(
+              chat_id=sts.get('TO'),
+              from_chat_id=sts.get('FROM'), 
+              protect_content=protect,
+              message_ids=msg)
+    except FloodWait as e:
+        await edit(user, m, 'ᴘʀᴏɢʀᴇssɪɴɢ', e.value, sts)
+        await asyncio.sleep(e.value)
+        await edit(user, m, 'ᴘʀᴏɢʀᴇssɪɴɢ', 5, sts)
+        await forward(bot, msg, m, sts, protect)
      await edit(user, m, 'ᴘʀᴏɢʀᴇssɪɴɢ', e.value, sts)
      await asyncio.sleep(e.value)
      await edit(user, m, 'ᴘʀᴏɢʀᴇssɪɴɢ', 5, sts)
