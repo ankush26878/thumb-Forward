@@ -34,34 +34,31 @@ async def settings(client, message):
 @Client.on_callback_query(filters.regex(r'^thumbnail'))
 async def thumbnail_settings_query(bot, query):
     user_id = query.from_user.id
-    try:
-        _, action = query.data.split("#")
-        
-        if action == 'settings':
-            # Show thumbnail settings menu
-            await query.message.edit_text(
-                "<b>📸 Thumbnail Settings</b>\n\nManage your media thumbnails here.",
-                reply_markup=thumbnail_buttons(user_id)
-            )
-        
-        elif action == 'upload':
-            # Prompt user to upload a thumbnail
-            await query.message.edit_text(
-                "🖼️ Please send an image to set as your default thumbnail."
-            )
-        
-        elif action == 'delete':
-            # Delete user's current thumbnail
-            await update_configs(user_id, {'thumbnail': None})
-            await query.answer("✅ Thumbnail deleted successfully!", show_alert=True)
-            await query.message.edit_text(
-                "<b>📸 Thumbnail Settings</b>\n\nManage your media thumbnails here.",
-                reply_markup=thumbnail_buttons(user_id)
-            )
+    _, action = query.data.split("#")
     
-    except Exception as e:
-        logger.error(f"Thumbnail settings error: {e}")
-        await query.answer("❌ An error occurred.", show_alert=True)
+    if action == 'settings':
+        # Fetch current thumbnail status
+        user_config = await db.get_user_config(user_id)
+        thumbnail_status = "No custom thumbnail set" if not user_config.get('thumbnail') else "Custom thumbnail is set"
+        
+        await query.message.edit_text(
+            f"**🖼️ Thumbnail Settings**\n\n{thumbnail_status}\n\nManage your thumbnail preferences here.",
+            reply_markup=thumbnail_buttons(user_id)
+        )
+    
+    elif action == 'upload':
+        await query.message.edit_text(
+            "🖼️ Please send an image to set as your default thumbnail."
+        )
+    
+    elif action == 'delete':
+        # Remove thumbnail from user config
+        await db.update_thumbnail(user_id, None)
+        await query.message.edit_text(
+            "🗑️ Your custom thumbnail has been deleted.",
+            reply_markup=thumbnail_buttons(user_id)
+        )
+
   if type=="main":
      await query.message.edit_text(
        "<b>Hᴇʀᴇ Is Tʜᴇ Sᴇᴛᴛɪɴɢs Pᴀɴᴇʟ⚙\n\nᴄʜᴀɴɢᴇ ʏᴏᴜʀ sᴇᴛᴛɪɴɢs ᴀs ʏᴏᴜʀ ᴡɪsʜ 👇</b>",
@@ -514,7 +511,7 @@ def thumbnail_buttons(user_id):
     buttons = [
         [InlineKeyboardButton('📸 Upload Thumbnail', callback_data='thumbnail#upload')],
         [InlineKeyboardButton('🚫 Delete Thumbnail', callback_data='thumbnail#delete')],
-        [InlineKeyboardButton('🔙 Back', callback_data='settings#extra')]
+        [InlineKeyboardButton('🔙 Back to Settings', callback_data='settings#extra')]
     ]
     return InlineKeyboardMarkup(buttons)
                     callback_data=f'settings#filters'),
