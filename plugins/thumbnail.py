@@ -1,12 +1,20 @@
-from pyrogram import Client, filters
-from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
-from database import db
-from .test import get_configs, update_configs
+# Don't Remove Credit Tg - @VJ_Botz
+# Subscribe YouTube Channel For Amazing Bot https://youtube.com/@Tech_VJ
+# Ask Doubt on telegram @KingVJ01
+
 import os
-import logging
 import asyncio
+import logging
 from typing import Optional, Union
 
+from pyrogram import Client, filters
+from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup, Message, CallbackQuery
+from pyrogram.errors import MessageNotModified
+
+from database import db
+from .test import get_configs, update_configs
+
+# Configure logging
 logger = logging.getLogger(__name__)
 
 # Thumbnail Configuration Management
@@ -208,14 +216,27 @@ async def handle_default_thumbnail(bot, query):
     
     status = "ENABLED" if current_status else "DISABLED"
     
+    await query.message.edit_text(
+        f"<b>🔘 Default Thumbnail Settings</b>\n\n"
+        f"Current Status: {status}\n\n"
+        "Choose to enable or disable removing thumbnails from all forwarded media.",
+        reply_markup=InlineKeyboardMarkup(buttons)
+    )
+
+async def handle_default_thumbnail_action(bot, query, enable: bool):
+    user_id = query.from_user.id
     try:
-        await query.message.edit_text(
-            f"<b>🔘 Default Thumbnail Settings</b>\n\nCurrent Status: {status}\n\nWhen enabled, all incoming thumbnails will be removed and videos/documents will use their default thumbnail",
-            reply_markup=InlineKeyboardMarkup(buttons)
-        )
+        # Update default thumbnail setting
+        await update_configs(user_id, 'default_thumbnail', enable)
+        
+        # Provide feedback
+        status_message = "✅ Default thumbnail mode enabled!" if enable else "❌ Default thumbnail mode disabled!"
+        await query.answer(status_message)
+        
+    
     except Exception as e:
-        await query.answer("⚠️ Unable to update message.", show_alert=True)
-        print(f"Error editing default thumbnail message: {e}")
+        await query.answer(f"⚠️ Error updating setting: {e}", show_alert=True)
+        print(f"Error in handle_default_thumbnail_action: {e}")
 
 async def handle_watermark_settings(bot, query):
     buttons = [
@@ -291,28 +312,28 @@ async def handle_watermark_action(bot, query, action):
             print(f"Error removing watermark: {e}")
 
 @Client.on_callback_query(filters.regex(r'^thumbnail#'))
-async def thumbnail_callback_handler(bot, query):
+async def thumbnail_callback_handler(bot: Client, query: CallbackQuery):
     try:
-        action = query.data.split('#')[1]
+        user_id = query.from_user.id
+        data = query.data.split("#")
+        action = data[1] if len(data) > 1 else None
         
-        if action == "main":
-            await handle_thumbnail_settings(bot, query)
-        elif action == "custom":
+        if action == "custom":
             await handle_custom_thumbnail(bot, query)
+        elif action == "add_custom":
+            await handle_add_custom_thumbnail(bot, query)
+        elif action == "view_custom":
+            await handle_view_custom_thumbnail(bot, query)
+        elif action == "remove_custom":
+            await handle_remove_custom_thumbnail(bot, query)
         elif action == "default":
             await handle_default_thumbnail(bot, query)
         elif action == "watermark":
             await handle_watermark_settings(bot, query)
         elif action == "enable_default":
-            await update_configs(query.from_user.id, 'default_thumbnail', True)
-            await query.answer("✅ Default thumbnail mode enabled!")
-            await handle_default_thumbnail(bot, query)
+            await handle_default_thumbnail_action(bot, query, True)
         elif action == "disable_default":
-            await update_configs(query.from_user.id, 'default_thumbnail', False)
-            await query.answer("❌ Default thumbnail mode disabled!")
-            await handle_default_thumbnail(bot, query)
-        elif action == "add_custom":
-            await query.message.delete()
+            await handle_default_thumbnail_action(bot, query, False)
             msg = await bot.ask(
                 query.message.chat.id,
                 "🖼️ Please send your custom thumbnail (as photo)\n\n/cancel to abort",
@@ -365,51 +386,23 @@ async def thumbnail_callback_handler(bot, query):
 
 async def process_media_thumbnail(file_type: str, file_data: dict, user_id: int) -> dict:
     try:
-        # Retrieve user's thumbnail configuration
-        user_config = await ThumbnailManager.get_user_thumbnail_config(user_id)
-        
-        # Thumbnail management buttons
-        thumbnail_buttons = [
-            [InlineKeyboardButton("🖼️ Set Custom Thumbnail", callback_data="thumbnail#custom")],
-            [InlineKeyboardButton("🔘 Remove Thumbnails", callback_data="thumbnail#default")]
-        ]
-        
-        # Always remove existing thumbnails for videos and documents
-        if file_type in ['video', 'document', 'photo']:
-            file_data['thumbnail'] = None
-            logger.info(f'Removed existing thumbnail for {file_type} for user {user_id}')
-        
-        # Apply custom thumbnail if explicitly set and not in default mode
-        if (user_config.get('thumbnail') and 
-            not user_config.get('default_thumbnail') and 
-            file_type in ['video', 'document', 'photo']):
-            
-            file_data['thumbnail'] = user_config['thumbnail']
-            logger.info(f'Applied custom thumbnail for {file_type} for user {user_id}')
-        
-        # Watermark processing (placeholder)
-        if user_config.get('watermark') and file_type in ['photo', 'video']:
-            try:
-                # Implement actual watermark logic here
-                logger.info(f'Watermark processing for {file_type}')
-            except Exception as watermark_error:
-                logger.error(f'Watermark processing error: {watermark_error}')
-        
-        # Add thumbnail management buttons
-        file_data['thumbnail_settings_buttons'] = InlineKeyboardMarkup(thumbnail_buttons)
+        # Remove thumbnails from ALL media types during forwarding
+        file_data['thumbnail'] = None
+        logger.info(f'Removed thumbnail for {file_type} during forwarding')
         
         return file_data
     
     except Exception as e:
-        logger.error(f'Thumbnail processing error for user {user_id}: {e}')
+        logger.error(f'Thumbnail removal error: {e}')
         return file_data
 
 def thumbnail_buttons(user_id=None):
     buttons = [
-        [InlineKeyboardButton('📸 Upload Thumbnail', callback_data='thumbnail#upload')],
-        [InlineKeyboardButton('🗑️ Delete Thumbnail', callback_data='thumbnail#delete')],
-        [InlineKeyboardButton('📤 Export Thumbnail', callback_data='thumbnail#export')],
-        [InlineKeyboardButton('📥 Import Thumbnail', callback_data='thumbnail#import')],
-        [InlineKeyboardButton('🔙 Back to Settings', callback_data='settings#extra')]
+        [InlineKeyboardButton("✚ Add Thumbnail", callback_data="thumbnail#custom")],
+        [InlineKeyboardButton("👀 View Thumbnail", callback_data="thumbnail#view_custom")],
+        [InlineKeyboardButton("🗑 Remove Thumbnail", callback_data="thumbnail#remove_custom")],
+        [InlineKeyboardButton("🔘 Default Thumbnail", callback_data="thumbnail#default")],
+        [InlineKeyboardButton("💧 Watermark Settings", callback_data="thumbnail#watermark")],
+        [InlineKeyboardButton("🔙 Back", callback_data="settings#main")]
     ]
     return InlineKeyboardMarkup(buttons)
