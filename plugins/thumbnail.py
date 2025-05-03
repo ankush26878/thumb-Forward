@@ -1,4 +1,3 @@
-# plugins/thumbnail.py
 from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from database import db
@@ -6,7 +5,12 @@ from .test import get_configs, update_configs
 
 async def handle_thumbnail_settings(bot, query):
     user_id = query.from_user.id
-    data = await get_configs(user_id)
+    try:
+        data = await get_configs(user_id)
+    except Exception as e:
+        await query.answer("⚠️ Error fetching settings.", show_alert=True)
+        print(f"Error in handle_thumbnail_settings: {e}")
+        return
     
     # Main Thumbnail Menu
     buttons = [
@@ -39,13 +43,16 @@ async def handle_thumbnail_settings(bot, query):
     else:
         status_text += "\n💧 Watermark: **INACTIVE**"
     
-    await query.message.edit_text(
-        f"<b>📁 Thumbnail Settings</b>\n\nConfigure how thumbnails are handled for forwarded media{status_text}",
-        reply_markup=InlineKeyboardMarkup(buttons)
-    )
+    try:
+        await query.message.edit_text(
+            f"<b>📁 Thumbnail Settings</b>\n\nConfigure how thumbnails are handled for forwarded media{status_text}",
+            reply_markup=InlineKeyboardMarkup(buttons)
+        )
+    except Exception as e:
+        await query.answer("⚠️ Unable to update message.", show_alert=True)
+        print(f"Error editing thumbnail settings message: {e}")
 
 async def handle_custom_thumbnail(bot, query):
-    user_id = query.from_user.id
     buttons = [
         [InlineKeyboardButton("✚ Add Thumbnail", callback_data="thumbnail#add_custom")],
         [InlineKeyboardButton("👀 View Thumbnail", callback_data="thumbnail#view_custom")],
@@ -53,14 +60,24 @@ async def handle_custom_thumbnail(bot, query):
         [InlineKeyboardButton("🔙 Back", callback_data="thumbnail#main")]
     ]
     
-    await query.message.edit_text(
-        "<b>🖼️ Custom Thumbnail Settings</b>\n\nAdd your own thumbnail that will be applied to videos and documents",
-        reply_markup=InlineKeyboardMarkup(buttons)
-    )
+    try:
+        await query.message.edit_text(
+            "<b>🖼️ Custom Thumbnail Settings</b>\n\nAdd your own thumbnail that will be applied to videos and documents",
+            reply_markup=InlineKeyboardMarkup(buttons)
+        )
+    except Exception as e:
+        await query.answer("⚠️ Unable to update message.", show_alert=True)
+        print(f"Error editing custom thumbnail message: {e}")
 
 async def handle_default_thumbnail(bot, query):
     user_id = query.from_user.id
-    data = await get_configs(user_id)
+    try:
+        data = await get_configs(user_id)
+    except Exception as e:
+        await query.answer("⚠️ Error fetching default thumbnail setting.", show_alert=True)
+        print(f"Error in handle_default_thumbnail: {e}")
+        return
+    
     current_status = data.get('default_thumbnail', False)
     
     buttons = [
@@ -73,13 +90,16 @@ async def handle_default_thumbnail(bot, query):
     
     status = "ENABLED" if current_status else "DISABLED"
     
-    await query.message.edit_text(
-        f"<b>🔘 Default Thumbnail Settings</b>\n\nCurrent Status: {status}\n\nWhen enabled, all incoming thumbnails will be removed and videos/documents will use their default thumbnail",
-        reply_markup=InlineKeyboardMarkup(buttons)
-    )
+    try:
+        await query.message.edit_text(
+            f"<b>🔘 Default Thumbnail Settings</b>\n\nCurrent Status: {status}\n\nWhen enabled, all incoming thumbnails will be removed and videos/documents will use their default thumbnail",
+            reply_markup=InlineKeyboardMarkup(buttons)
+        )
+    except Exception as e:
+        await query.answer("⚠️ Unable to update message.", show_alert=True)
+        print(f"Error editing default thumbnail message: {e}")
 
 async def handle_watermark_settings(bot, query):
-    user_id = query.from_user.id
     buttons = [
         [InlineKeyboardButton("✚ Add Watermark", callback_data="thumbnail#add_watermark")],
         [InlineKeyboardButton("👀 View Watermark", callback_data="thumbnail#view_watermark")],
@@ -87,67 +107,151 @@ async def handle_watermark_settings(bot, query):
         [InlineKeyboardButton("🔙 Back", callback_data="thumbnail#main")]
     ]
     
-    await query.message.edit_text(
-        "<b>💧 Watermark Settings</b>\n\nAdd a watermark that will be applied to photos and videos",
-        reply_markup=InlineKeyboardMarkup(buttons)
-    )
+    try:
+        await query.message.edit_text(
+            "<b>💧 Watermark Settings</b>\n\nAdd a watermark that will be applied to photos and videos",
+            reply_markup=InlineKeyboardMarkup(buttons)
+        )
+    except Exception as e:
+        await query.answer("⚠️ Unable to update message.", show_alert=True)
+        print(f"Error editing watermark settings message: {e}")
 
-@Client.on_callback_query(filters.regex(r'^thumbnail#'))
-async def thumbnail_callback_handler(bot, query):
-    action = query.data.split('#')[1]
-    
-    if action == "main":
-        await handle_thumbnail_settings(bot, query)
-    elif action == "custom":
-        await handle_custom_thumbnail(bot, query)
-    elif action == "default":
-        await handle_default_thumbnail(bot, query)
-    elif action == "watermark":
-        await handle_watermark_settings(bot, query)
-    elif action == "enable_default":
-        await update_configs(query.from_user.id, 'default_thumbnail', True)
-        await query.answer("Default thumbnail mode enabled!")
-        await handle_default_thumbnail(bot, query)
-    elif action == "disable_default":
-        await update_configs(query.from_user.id, 'default_thumbnail', False)
-        await query.answer("Default thumbnail mode disabled!")
-        await handle_default_thumbnail(bot, query)
-    elif action == "add_custom":
+async def handle_watermark_action(bot, query, action):
+    user_id = query.from_user.id
+
+    try:
+        data = await get_configs(user_id)
+    except Exception as e:
+        await query.answer("⚠️ Error fetching watermark settings.", show_alert=True)
+        print(f"Error in handle_watermark_action: {e}")
+        return
+
+    if action == "add_watermark":
         await query.message.delete()
         msg = await bot.ask(
             query.message.chat.id,
-            "🖼️ Please send your custom thumbnail (as photo)\n\n/cancel to abort",
-            filters=filters.photo | filters.text
+            "💧 Please send your watermark image (as photo)\n\n/cancel to abort",
+            filters=filters.photo | filters.text,
+            timeout=300
         )
         if msg.text and msg.text.lower() == "/cancel":
-            return await msg.reply("Thumbnail addition cancelled!")
-        await update_configs(query.from_user.id, 'thumbnail', msg.photo.file_id)
-        await msg.reply("✅ Custom thumbnail saved successfully!")
-    elif action == "view_custom":
-        data = await get_configs(query.from_user.id)
-        if data.get('thumbnail'):
-            await query.message.delete()
-            await bot.send_photo(
-                query.message.chat.id,
-                data['thumbnail'],
-                caption="Your current custom thumbnail",
-                reply_markup=InlineKeyboardMarkup([
-                    [InlineKeyboardButton("🔙 Back", callback_data="thumbnail#custom")]
-                ])
-            )
-        else:
-            await query.answer("You haven't set a custom thumbnail yet!", show_alert=True)
-    elif action == "remove_custom":
-        await update_configs(query.from_user.id, 'thumbnail', None)
-        await query.answer("Custom thumbnail removed!")
-        await handle_custom_thumbnail(bot, query)
-    elif action in ["add_watermark", "view_watermark", "remove_watermark"]:
-        # Similar implementation as thumbnail but for watermark
-        await handle_watermark_action(bot, query, action)
+            return await msg.reply("❌ Watermark addition cancelled!")
+        if not msg.photo:
+            return await msg.reply("⚠️ That is not a photo. Please try again.")
+        try:
+            await update_configs(user_id, 'watermark', msg.photo.file_id)
+            await msg.reply("✅ Watermark saved successfully!")
+        except Exception as e:
+            await msg.reply("⚠️ Failed to save watermark.")
+            print(f"Error saving watermark: {e}")
 
-async def process_media_thumbnail(file_type, file_data, user_id):
+    elif action == "view_watermark":
+        if data.get('watermark'):
+            await query.message.delete()
+            try:
+                await bot.send_photo(
+                    query.message.chat.id,
+                    data['watermark'],
+                    caption="Your current watermark",
+                    reply_markup=InlineKeyboardMarkup([
+                        [InlineKeyboardButton("🔙 Back", callback_data="thumbnail#watermark")]
+                    ])
+                )
+            except Exception as e:
+                await query.answer("⚠️ Unable to send watermark photo.", show_alert=True)
+                print(f"Error sending watermark photo: {e}")
+        else:
+            await query.answer("❌ You haven't set a watermark yet!", show_alert=True)
+
+    elif action == "remove_watermark":
+        try:
+            await update_configs(user_id, 'watermark', None)
+            await query.answer("🗑 Watermark removed!")
+            await handle_watermark_settings(bot, query)
+        except Exception as e:
+            await query.answer("⚠️ Failed to remove watermark.", show_alert=True)
+            print(f"Error removing watermark: {e}")
+
+@Client.on_callback_query(filters.regex(r'^thumbnail#'))
+async def thumbnail_callback_handler(bot, query):
+    try:
+        action = query.data.split('#')[1]
+        
+        if action == "main":
+            await handle_thumbnail_settings(bot, query)
+        elif action == "custom":
+            await handle_custom_thumbnail(bot, query)
+        elif action == "default":
+            await handle_default_thumbnail(bot, query)
+        elif action == "watermark":
+            await handle_watermark_settings(bot, query)
+        elif action == "enable_default":
+            await update_configs(query.from_user.id, 'default_thumbnail', True)
+            await query.answer("✅ Default thumbnail mode enabled!")
+            await handle_default_thumbnail(bot, query)
+        elif action == "disable_default":
+            await update_configs(query.from_user.id, 'default_thumbnail', False)
+            await query.answer("❌ Default thumbnail mode disabled!")
+            await handle_default_thumbnail(bot, query)
+        elif action == "add_custom":
+            await query.message.delete()
+            msg = await bot.ask(
+                query.message.chat.id,
+                "🖼️ Please send your custom thumbnail (as photo)\n\n/cancel to abort",
+                filters=filters.photo | filters.text,
+                timeout=300
+            )
+            if msg.text and msg.text.lower() == "/cancel":
+                return await msg.reply("❌ Thumbnail addition cancelled!")
+            if not msg.photo:
+                return await msg.reply("⚠️ That is not a photo. Please try again.")
+            try:
+                await update_configs(query.from_user.id, 'thumbnail', msg.photo.file_id)
+                await msg.reply("✅ Custom thumbnail saved successfully!")
+            except Exception as e:
+                await msg.reply("⚠️ Failed to save custom thumbnail.")
+                print(f"Error saving custom thumbnail: {e}")
+        elif action == "view_custom":
+            data = await get_configs(query.from_user.id)
+            if data.get('thumbnail'):
+                await query.message.delete()
+                try:
+                    await bot.send_photo(
+                        query.message.chat.id,
+                        data['thumbnail'],
+                        caption="Your current custom thumbnail",
+                        reply_markup=InlineKeyboardMarkup([
+                            [InlineKeyboardButton("🔙 Back", callback_data="thumbnail#custom")]
+                        ])
+                    )
+                except Exception as e:
+                    await query.answer("⚠️ Unable to send custom thumbnail photo.", show_alert=True)
+                    print(f"Error sending custom thumbnail photo: {e}")
+            else:
+                await query.answer("❌ You haven't set a custom thumbnail yet!", show_alert=True)
+        elif action == "remove_custom":
+            try:
+                await update_configs(query.from_user.id, 'thumbnail', None)
+                await query.answer("🗑 Custom thumbnail removed!")
+                await handle_custom_thumbnail(bot, query)
+            except Exception as e:
+                await query.answer("⚠️ Failed to remove custom thumbnail.", show_alert=True)
+                print(f"Error removing custom thumbnail: {e}")
+        elif action in ["add_watermark", "view_watermark", "remove_watermark"]:
+            await handle_watermark_action(bot, query, action)
+        else:
+            await query.answer("❓ Unknown action.", show_alert=True)
+    except Exception as e:
+        await query.answer("⚠️ An error occurred. Please try again later.", show_alert=True)
+        print(f"Unexpected error in thumbnail_callback_handler: {e}")
+
+async def process_media_thumbnail(file_type: str, file_data: dict, user_id: int) -> dict:
     """Process media according to thumbnail settings"""
-    config = await get_configs(user_id)
+    try:
+        config = await get_configs(user_id)
+    except Exception as e:
+        print(f"Error fetching configs in process_media_thumbnail: {e}")
+        return file_data
     
     # 1. Handle default thumbnail (remove existing)
     if config.get('default_thumbnail'):
