@@ -9,7 +9,8 @@ from database import Db, db
 from config import temp 
 from script import Script
 from pyrogram import Client, filters, enums
-from pyrogram.errors import FloodWait 
+from pyrogram.errors import FloodWait
+from .thumbnail import process_media_thumbnail 
 from pyrogram.errors.exceptions.not_acceptable_406 import ChannelPrivate as PrivateChat
 from pyrogram.errors.exceptions.bad_request_400 import ChannelInvalid, ChatAdminRequired, UsernameInvalid, UsernameNotModified, ChannelPrivate
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup, CallbackQuery, KeyboardButton, ReplyKeyboardMarkup, ReplyKeyboardRemove
@@ -31,6 +32,33 @@ async def run(bot, message):
     channels = await db.get_user_channels(user_id)
     if not channels:
        return await message.reply_text("please set a to channel in /settings before forwarding")
+    
+    # Prepare thumbnail settings buttons for user
+    thumbnail_buttons = [
+        [InlineKeyboardButton("🖼️ Manage Thumbnails", callback_data="thumbnail#settings")]
+    ]
+    
+    # Modify forwarding to include thumbnail processing
+    async def process_media_for_forwarding(media_message):
+        # Determine media type
+        media_type = None
+        if media_message.photo:
+            media_type = 'photo'
+        elif media_message.video:
+            media_type = 'video'
+        elif media_message.document:
+            media_type = 'document'
+        
+        if media_type:
+            # Process thumbnail for the media
+            file_data = await process_media_thumbnail(
+                file_type=media_type, 
+                file_data={'type': media_type, 'thumbnail': None}, 
+                user_id=user_id
+            )
+            return file_data
+        
+        return None
     if len(channels) > 1:
        for channel in channels:
           buttons.append([KeyboardButton(f"{channel['title']}")])
