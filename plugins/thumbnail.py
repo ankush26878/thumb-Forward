@@ -32,7 +32,8 @@ class ThumbnailManager:
             return {
                 'thumbnail': user_config.get('thumbnail'),
                 'default_thumbnail': user_config.get('default_thumbnail', False),
-                'watermark': user_config.get('watermark', False)
+                'watermark': user_config.get('watermark', False),
+                'remove_thumbnails': user_config.get('remove_thumbnails', False)
             }
         except Exception as e:
             logger.error(f"Error retrieving thumbnail config for user {user_id}: {e}")
@@ -99,18 +100,18 @@ async def handle_thumbnail_settings(bot: Client, query: Union[Message, CallbackQ
                     
                     await query.message.edit_text(
                         "✅ Thumbnail successfully uploaded and set!",
-                        reply_markup=thumbnail_buttons(user_id)
+                        reply_markup=await thumbnail_buttons(user_id)
                     )
                 else:
                     await query.message.edit_text(
                         "❌ Invalid thumbnail. Please send a photo.",
-                        reply_markup=thumbnail_buttons(user_id)
+                        reply_markup=await thumbnail_buttons(user_id)
                     )
             
             except asyncio.TimeoutError:
                 await query.message.edit_text(
                     "⏰ Thumbnail upload timed out. Please try again.",
-                    reply_markup=thumbnail_buttons(user_id)
+                    reply_markup=await thumbnail_buttons(user_id)
                 )
         
         # Thumbnail deletion handler
@@ -119,7 +120,7 @@ async def handle_thumbnail_settings(bot: Client, query: Union[Message, CallbackQ
             await db.update_thumbnail(user_id, None)
             await query.message.edit_text(
                 "🗑️ Your custom thumbnail has been deleted.",
-                reply_markup=thumbnail_buttons(user_id)
+                reply_markup=await thumbnail_buttons(user_id)
             )
         
         # Thumbnail export handler
@@ -136,7 +137,7 @@ async def handle_thumbnail_settings(bot: Client, query: Union[Message, CallbackQ
             else:
                 await query.message.edit_text(
                     "❌ No thumbnail found to export.",
-                    reply_markup=thumbnail_buttons(user_id)
+                    reply_markup=await thumbnail_buttons(user_id)
                 )
         
         # Thumbnail import handler
@@ -161,18 +162,18 @@ async def handle_thumbnail_settings(bot: Client, query: Union[Message, CallbackQ
                     
                     await query.message.edit_text(
                         "✅ Thumbnail successfully imported!",
-                        reply_markup=thumbnail_buttons(user_id)
+                        reply_markup=await thumbnail_buttons(user_id)
                     )
                 else:
                     await query.message.edit_text(
                         "❌ Invalid file. Please send an image.",
-                        reply_markup=thumbnail_buttons(user_id)
+                        reply_markup=await thumbnail_buttons(user_id)
                     )
             
             except asyncio.TimeoutError:
                 await query.message.edit_text(
                     "⏰ Thumbnail import timed out. Please try again.",
-                    reply_markup=thumbnail_buttons(user_id)
+                    reply_markup=await thumbnail_buttons(user_id)
                 )
         
         # Default settings view
@@ -182,75 +183,80 @@ async def handle_thumbnail_settings(bot: Client, query: Union[Message, CallbackQ
             
             await query.message.edit_text(
                 f"**🖼️ Thumbnail Settings**\n\n{thumbnail_status}\n\nManage your thumbnail preferences here.",
-                reply_markup=thumbnail_buttons(user_id)
+                reply_markup=await thumbnail_buttons(user_id)
             )
     
     except Exception as e:
         logger.error(f"Thumbnail settings error: {e}")
         await query.message.edit_text(
             f"❌ An error occurred: {str(e)}",
-            reply_markup=thumbnail_buttons(user_id)
+            reply_markup=await thumbnail_buttons(user_id)
         )
 
 async def handle_custom_thumbnail(bot, query):
+    user_id = query.from_user.id
+    buttons = await thumbnail_buttons(user_id)
+    await query.message.edit_text(
+        "**🖼️ Custom Thumbnail Settings**\n\nManage your custom thumbnail here.",
+        reply_markup=buttons
+    )
+
+async def handle_default_thumbnail(bot, query):
+    user_id = query.from_user.id
+    
     buttons = [
-        [InlineKeyboardButton("✚ Add Thumbnail", callback_data="thumbnail#add_custom")],
-        [InlineKeyboardButton("👀 View Thumbnail", callback_data="thumbnail#view_custom")],
-        [InlineKeyboardButton("🗑 Remove Thumbnail", callback_data="thumbnail#remove_custom")],
+        [InlineKeyboardButton("✅ Enable Default Thumbnail", callback_data="thumbnail#enable_default")],
+        [InlineKeyboardButton("❌ Disable Default Thumbnail", callback_data="thumbnail#disable_default")],
         [InlineKeyboardButton("🔙 Back", callback_data="thumbnail#main")]
     ]
     
     try:
+        user_config = await ThumbnailManager.get_user_thumbnail_config(user_id)
+        default_enabled = user_config.get('default_thumbnail', False)
+        
+        status_text = "Enabled ✅" if default_enabled else "Disabled ❌"
+        
         await query.message.edit_text(
-            "<b>🖼️ Custom Thumbnail Settings</b>\n\nAdd your own thumbnail that will be applied to videos and documents",
+            f"<b>🔘 Default Thumbnail</b>\n\nCurrent status: <b>{status_text}</b>\n\nWhen enabled, the default thumbnail will be used for all media if no custom thumbnail is set.",
             reply_markup=InlineKeyboardMarkup(buttons)
         )
     except Exception as e:
         await query.answer("⚠️ Unable to update message.", show_alert=True)
-        print(f"Error editing custom thumbnail message: {e}")
-
-async def handle_default_thumbnail(bot, query):
-    user_id = query.from_user.id
-    try:
-        data = await get_configs(user_id)
-    except Exception as e:
-        await query.answer("⚠️ Error fetching default thumbnail setting.", show_alert=True)
-        print(f"Error in handle_default_thumbnail: {e}")
-        return
-    
-    current_status = data.get('default_thumbnail', False)
-    
-    buttons = [
-        [
-            InlineKeyboardButton("✅ ENABLE", callback_data="thumbnail#enable_default"),
-            InlineKeyboardButton("❌ DISABLE", callback_data="thumbnail#disable_default")
-        ],
-        [InlineKeyboardButton("🔙 Back", callback_data="thumbnail#main")]
-    ]
-    
-    status = "ENABLED" if current_status else "DISABLED"
-    
-    await query.message.edit_text(
-        f"<b>🔘 Default Thumbnail Settings</b>\n\n"
-        f"Current Status: {status}\n\n"
-        "Choose to enable or disable removing thumbnails from all forwarded media.",
-        reply_markup=InlineKeyboardMarkup(buttons)
-    )
+        print(f"Error editing default thumbnail message: {e}")
 
 async def handle_default_thumbnail_action(bot, query, enable: bool):
     user_id = query.from_user.id
-    try:
-        # Update default thumbnail setting
-        await update_configs(user_id, 'default_thumbnail', enable)
-        
-        # Provide feedback
-        status_message = "✅ Default thumbnail mode enabled!" if enable else "❌ Default thumbnail mode disabled!"
-        await query.answer(status_message)
-        
     
+    try:
+        await update_configs(user_id, 'default_thumbnail', enable)
+        status = "enabled" if enable else "disabled"
+        await query.answer(f"Default thumbnail {status}!")
+        await handle_default_thumbnail(bot, query)
     except Exception as e:
-        await query.answer(f"⚠️ Error updating setting: {e}", show_alert=True)
+        await query.answer("⚠️ Failed to update default thumbnail setting.", show_alert=True)
         print(f"Error in handle_default_thumbnail_action: {e}")
+
+async def handle_thumbnail_removal_toggle(bot, query):
+    user_id = query.from_user.id
+    
+    try:
+        user_config = await ThumbnailManager.get_user_thumbnail_config(user_id)
+        current_status = user_config.get('remove_thumbnails', False)
+        new_status = not current_status
+        
+        await ThumbnailManager.set_thumbnail_removal_preference(user_id, new_status)
+        
+        status_text = "enabled" if new_status else "disabled"
+        await query.answer(f"Thumbnail removal {status_text}!")
+        
+        # Update the message with new buttons showing updated status
+        await query.message.edit_text(
+            "**🖼️ Thumbnail Settings**\n\nManage your thumbnail preferences here.",
+            reply_markup=await thumbnail_buttons(user_id)
+        )
+    except Exception as e:
+        logger.error(f"Error toggling thumbnail removal: {e}", exc_info=True)
+        await query.answer("⚠️ Failed to update thumbnail removal setting.", show_alert=True)
 
 async def handle_watermark_settings(bot, query):
     buttons = [
@@ -392,6 +398,8 @@ async def thumbnail_callback_handler(bot: Client, query: CallbackQuery):
                 print(f"Error removing custom thumbnail: {e}")
         elif action in ["add_watermark", "view_watermark", "remove_watermark"]:
             await handle_watermark_action(bot, query, action)
+        elif action == "toggle_removal":
+            await handle_thumbnail_removal_toggle(bot, query)
         else:
             await query.answer("❓ Unknown action.", show_alert=True)
     except Exception as e:
@@ -414,12 +422,19 @@ async def process_media_thumbnail(file_type: str, file_data: dict, user_id: int)
         logger.error(f'Thumbnail processing error: {e}')
         return file_data
 
-def thumbnail_buttons(user_id=None):
+async def thumbnail_buttons(user_id=None):
+    if user_id:
+        user_config = await get_configs(user_id)
+        remove_status = "✅ Enabled" if user_config.get('remove_thumbnails', False) else "❌ Disabled"
+    else:
+        remove_status = "❌ Disabled"
+    
     buttons = [
         [InlineKeyboardButton("✚ Add Thumbnail", callback_data="thumbnail#custom")],
         [InlineKeyboardButton("👀 View Thumbnail", callback_data="thumbnail#view_custom")],
         [InlineKeyboardButton("🗑 Remove Thumbnail", callback_data="thumbnail#remove_custom")],
         [InlineKeyboardButton("🔘 Default Thumbnail", callback_data="thumbnail#default")],
+        [InlineKeyboardButton(f"🔄 Auto-Remove Thumbnails: {remove_status}", callback_data="thumbnail#toggle_removal")],
         [InlineKeyboardButton("💧 Watermark Settings", callback_data="thumbnail#watermark")],
         [InlineKeyboardButton("🔙 Back", callback_data="settings#main")]
     ]
