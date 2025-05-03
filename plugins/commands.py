@@ -21,8 +21,6 @@ from pyrogram import Client, filters
 
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
-from .thumbnail import handle_thumbnail_settings, thumbnail_callback_handler
-
 import requests
 
 import time as time
