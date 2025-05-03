@@ -33,18 +33,10 @@ async def settings(client, message):
 
 @Client.on_callback_query(filters.regex(r'^thumbnail'))
 async def thumbnail_settings_query(bot, query):
-    user_id = query.from_user.id
-    _, action = query.data.split("#")
+    from .thumbnail import handle_thumbnail_settings
     
-    if action == 'settings':
-        # Fetch current thumbnail status
-        user_config = await db.get_user_config(user_id)
-        thumbnail_status = "No custom thumbnail set" if not user_config.get('thumbnail') else "Custom thumbnail is set"
-        
-        await query.message.edit_text(
-            f"**🖼️ Thumbnail Settings**\n\n{thumbnail_status}\n\nManage your thumbnail preferences here.",
-            reply_markup=thumbnail_buttons(user_id)
-        )
+    _, action = query.data.split("#")
+    await handle_thumbnail_settings(bot, query, action)
     
     elif action == 'upload':
         await query.message.edit_text(
