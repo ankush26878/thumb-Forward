@@ -40,8 +40,7 @@ class ThumbnailManager:
     
     @staticmethod
     async def set_user_thumbnail(user_id: int, thumbnail_path: Optional[str] = None) -> bool:
-        """
-        Set or remove user's thumbnail
+        """Set or remove user's thumbnail
         
         :param user_id: Telegram user ID
         :param thumbnail_path: Path to thumbnail image or None to remove
@@ -52,6 +51,21 @@ class ThumbnailManager:
             return True
         except Exception as e:
             logger.error(f"Error setting thumbnail for user {user_id}: {e}")
+            return False
+
+    @staticmethod
+    async def set_thumbnail_removal_preference(user_id: int, remove_thumbnails: bool) -> bool:
+        """Set user's preference for thumbnail removal
+        
+        :param user_id: Telegram user ID
+        :param remove_thumbnails: Whether to remove thumbnails during forwarding
+        :return: Success status
+        """
+        try:
+            await update_configs(user_id, 'remove_thumbnails', remove_thumbnails)
+            return True
+        except Exception as e:
+            logger.error(f"Error setting thumbnail removal preference for user {user_id}: {e}")
             return False
 
 async def handle_thumbnail_settings(bot: Client, query: Union[Message, CallbackQuery], action: str = None):
@@ -386,14 +400,18 @@ async def thumbnail_callback_handler(bot: Client, query: CallbackQuery):
 
 async def process_media_thumbnail(file_type: str, file_data: dict, user_id: int) -> dict:
     try:
-        # Remove thumbnails from ALL media types during forwarding
-        file_data['thumbnail'] = None
-        logger.info(f'Removed thumbnail for {file_type} during forwarding')
+        # Check user-specific thumbnail removal settings
+        user_config = await ThumbnailManager.get_user_thumbnail_config(user_id)
+        
+        # Only remove thumbnail if user has enabled this setting
+        if user_config.get('remove_thumbnails', False):
+            file_data['thumbnail'] = None
+            logger.info(f'Removed thumbnail for {file_type} during forwarding')
         
         return file_data
     
     except Exception as e:
-        logger.error(f'Thumbnail removal error: {e}')
+        logger.error(f'Thumbnail processing error: {e}')
         return file_data
 
 def thumbnail_buttons(user_id=None):
