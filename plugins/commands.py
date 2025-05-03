@@ -21,9 +21,13 @@ from pyrogram import Client, filters
 
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
+from .thumbnail import handle_thumbnail_settings, thumbnail_callback_handler
+
 import requests
 
 import time as time
+
+import psutil
 
 
 START_TIME = time.time()
@@ -292,26 +296,18 @@ async def get_bot_uptime(start_time):
 @Client.on_message(filters.private & filters.command(['set_thumbnail']))
 
 async def set_thumbnail(client, message):
-
-    await message.reply("Please send the thumbnail image.")
-
-    response = await client.listen(message.chat.id)
-
+    user_id = message.from_user.id
+    if not message.reply_to_message or not message.reply_to_message.photo:
+        return await message.reply_text("❌ Please reply to a photo to set as thumbnail.")
     
-
-    if response.photo:
-
-        thumb_file_id = response.photo.file_id
-
-        # Save the thumbnail file ID to the database or configuration
-
-        await db.set_user_thumbnail(message.from_user.id, thumb_file_id)
-
-        await message.reply("Thumbnail has been set successfully!")
-
-    else:
-
-        await message.reply("Invalid input. Please send a valid image.")
+    file = await client.download_media(message.reply_to_message.photo)
+    
+    # Save thumbnail to user's config using the new thumbnail handling logic
+    try:
+        await db.update_thumbnail(user_id, file)
+        await message.reply_text("✅ Thumbnail set successfully!")
+    except Exception as e:
+        await message.reply_text(f"❌ Error setting thumbnail: {str(e)}")
 
 
 # Don't Remove Credit Tg - @VJ_Botz
