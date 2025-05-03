@@ -43,23 +43,27 @@ async def settings_callback(bot, query):
   except:
     type = "main"
   
-  if type=="main":
-    logger.info("Main settings menu requested")
-    buttons = [[InlineKeyboardButton('🤖 Bᴏᴛs', callback_data="settings#bots")]]
-    buttons.append([InlineKeyboardButton('📢 Cʜᴀɴɴᴇʟs', callback_data="settings#channels")])
-    buttons.append([InlineKeyboardButton('📝 Cᴀᴘᴛɪᴏɴ', callback_data="settings#caption")])
-    buttons.append([InlineKeyboardButton('🔘 Bᴜᴛᴛᴏɴ', callback_data="settings#button")])
-    buttons.append([InlineKeyboardButton('🔍 Fɪʟᴛᴇʀs', callback_data="settings#filters")])
-    buttons.append([InlineKeyboardButton('🗃 MᴏɴɢᴏDB', callback_data="settings#database")])
-    buttons.append([InlineKeyboardButton('🖼️ Tʜᴜᴍʙɴᴀɪʟ Sᴇᴛᴛɪɴɢs', callback_data="settings#thumbnail")])
-    buttons.append([InlineKeyboardButton('⚙️ Exᴛʀᴀ Sᴇᴛᴛɪɴɢs', callback_data="settings#extra")])
-    buttons.append([InlineKeyboardButton('⫷ Bᴀᴄᴋ', callback_data="help")])
-    logger.info(f"Main settings buttons: {buttons}")
-    await query.message.edit_text(
-      "<b>Hᴇʀᴇ Is Tʜᴇ Sᴇᴛᴛɪɴɢs Pᴀɴᴇʟ⚙\n\nᴄʜᴀɴɢᴇ ʏᴏᴜʀ sᴇᴛᴛɪɴɢs ᴀs ʏᴏᴜʀ ᴡɪsʜ 👇</b>",
-      reply_markup=InlineKeyboardMarkup(buttons))
+  try:
+    if type=="main":
+      logger.info("Main settings menu requested")
+      buttons = [[InlineKeyboardButton('🤖 Bᴏᴛs', callback_data="settings#bots")]]
+      buttons.append([InlineKeyboardButton('📢 Cʜᴀɴɴᴇʟs', callback_data="settings#channels")])
+      buttons.append([InlineKeyboardButton('📝 Cᴀᴘᴛɪᴏɴ', callback_data="settings#caption")])
+      buttons.append([InlineKeyboardButton('🔘 Bᴜᴛᴛᴏɴ', callback_data="settings#button")])
+      buttons.append([InlineKeyboardButton('🔍 Fɪʟᴛᴇʀs', callback_data="settings#filters")])
+      buttons.append([InlineKeyboardButton('🗃 MᴏɴɢᴏDB', callback_data="settings#database")])
+      buttons.append([InlineKeyboardButton('🖼️ Tʜᴜᴍʙɴᴀɪʟ Sᴇᴛᴛɪɴɢs', callback_data="settings#thumbnail")])
+      buttons.append([InlineKeyboardButton('⚙️ Exᴛʀᴀ Sᴇᴛᴛɪɴɢs', callback_data="settings#extra")])
+      buttons.append([InlineKeyboardButton('⫷ Bᴀᴄᴋ', callback_data="help")])
+      logger.info(f"Main settings buttons: {buttons}")
+      try:
+        await query.message.edit_text(
+          "<b>Hᴇʀᴇ Is Tʜᴇ Sᴇᴛᴛɪɴɢs Pᴀɴᴇʟ⚙\n\nᴄʜᴀɴɢᴇ ʏᴏᴜʀ sᴇᴛᴛɪɴɢs ᴀs ʏᴏᴜʀ ᴡɪsʜ 👇</b>",
+          reply_markup=InlineKeyboardMarkup(buttons))
+      except MessageNotModified:
+        await query.answer("Settings already displayed")
 
-  elif type=="bots":
+    elif type=="bots":
      buttons = []
      _bot = await db.get_bot(user_id)
      usr_bot = await db.get_userbot(user_id)
@@ -81,7 +85,7 @@ async def settings_callback(bot, query):
         "<b><u>My Bots</b></u>\n\n<b>You can manage your bots in here</b>",
         reply_markup=InlineKeyboardMarkup(buttons))
 
-  elif type=="addbot":
+    elif type=="addbot":
      await query.message.delete()
      bot = await CLIENT.add_bot(bot, query)
      if bot != True: return
@@ -89,7 +93,7 @@ async def settings_callback(bot, query):
         "<b>bot token successfully added to db</b>",
         reply_markup=InlineKeyboardMarkup(buttons))
 
-  elif type=="adduserbot":
+    elif type=="adduserbot":
      await query.message.delete()
      user = await CLIENT.add_session(bot, query)
      if user != True: return
@@ -97,7 +101,7 @@ async def settings_callback(bot, query):
         "<b>session successfully added to db</b>",
         reply_markup=InlineKeyboardMarkup(buttons))
 
-  elif type=="channels":
+    elif type=="channels":
      buttons = []
      channels = await db.get_user_channels(user_id)
      for channel in channels:
@@ -111,7 +115,7 @@ async def settings_callback(bot, query):
        "<b><u>My Channels</b></u>\n\n<b>you can manage your target chats in here</b>",
        reply_markup=InlineKeyboardMarkup(buttons))
 
-  elif type=="addchannel":  
+    elif type=="addchannel":  
      await query.message.delete()
      chat_ids = await bot.ask(chat_id=query.from_user.id, text="<b>❪ SET TARGET CHAT ❫\n\nForward a message from Your target chat\n/cancel - cancel this process</b>")
      if chat_ids.text=="/cancel":
@@ -130,7 +134,7 @@ async def settings_callback(bot, query):
         "<b>Successfully updated</b>" if chat else "<b>This channel already added</b>",
         reply_markup=InlineKeyboardMarkup(buttons))
 
-  elif type=="editbot": 
+    elif type=="editbot": 
      bot = await db.get_bot(user_id)
      TEXT = Script.BOT_DETAILS if bot['is_bot'] else Script.USER_DETAILS
      buttons = [[InlineKeyboardButton('❌ Remove ❌', callback_data=f"settings#removebot")
@@ -140,7 +144,7 @@ async def settings_callback(bot, query):
         TEXT.format(bot['name'], bot['id'], bot['username']),
         reply_markup=InlineKeyboardMarkup(buttons))
      
-  elif type=="edituserbot": 
+    elif type=="edituserbot": 
      bot = await db.get_userbot(user_id)
      TEXT = Script.USER_DETAILS
      buttons = [[InlineKeyboardButton('❌ Remove ❌', callback_data=f"settings#removeuserbot")
@@ -150,19 +154,19 @@ async def settings_callback(bot, query):
         TEXT.format(bot['name'], bot['id'], bot['username']),
         reply_markup=InlineKeyboardMarkup(buttons))
      
-  elif type=="removebot":
+    elif type=="removebot":
      await db.remove_bot(user_id)
      await query.message.edit_text(
         "<b>successfully updated</b>",
         reply_markup=InlineKeyboardMarkup(buttons))
 
-  elif type=="removeuserbot":
+    elif type=="removeuserbot":
      await db.remove_userbot(user_id)
      await query.message.edit_text(
         "<b>successfully updated</b>",
         reply_markup=InlineKeyboardMarkup(buttons))
 
-  elif type.startswith("editchannels"): 
+    elif type.startswith("editchannels"): 
      chat_id = type.split('_')[1]
      chat = await db.get_channel_details(user_id, chat_id)
      buttons = [[InlineKeyboardButton('❌ Remove ❌', callback_data=f"settings#removechannel_{chat_id}")
@@ -172,14 +176,14 @@ async def settings_callback(bot, query):
         f"<b><u>📄 CHANNEL DETAILS</b></u>\n\n<b>- TITLE:</b> <code>{chat['title']}</code>\n<b>- CHANNEL ID: </b> <code>{chat['chat_id']}</code>\n<b>- USERNAME:</b> {chat['username']}",
         reply_markup=InlineKeyboardMarkup(buttons))
 
-  elif type.startswith("removechannel"):
+    elif type.startswith("removechannel"):
      chat_id = type.split('_')[1]
      await db.remove_channel(user_id, chat_id)
      await query.message.edit_text(
         "<b>successfully updated</b>",
         reply_markup=InlineKeyboardMarkup(buttons))
 
-  elif type=="caption":
+    elif type=="caption":
      buttons = []
      data = await get_configs(user_id)
      caption = data['caption']
@@ -197,7 +201,7 @@ async def settings_callback(bot, query):
         "<b><u>CUSTOM CAPTION</b></u>\n\n<b>You can set a custom caption to videos and documents. Normaly use its default caption</b>\n\n<b><u>AVAILABLE FILLINGS:</b></u>\n- <code>{filename}</code> : Filename\n- <code>{size}</code> : File size\n- <code>{caption}</code> : default caption",
         reply_markup=InlineKeyboardMarkup(buttons))
 
-  elif type=="seecaption":   
+    elif type=="seecaption":   
      data = await get_configs(user_id)
      buttons = [[InlineKeyboardButton('🖋️ Edit Caption', 
                   callback_data="settings#addcaption")
@@ -208,13 +212,13 @@ async def settings_callback(bot, query):
         f"<b><u>YOUR CUSTOM CAPTION</b></u>\n\n<code>{data['caption']}</code>",
         reply_markup=InlineKeyboardMarkup(buttons))
 
-  elif type=="deletecaption":
+    elif type=="deletecaption":
      await update_configs(user_id, 'caption', None)
      await query.message.edit_text(
         "<b>successfully updated</b>",
         reply_markup=InlineKeyboardMarkup(buttons))
 
-  elif type=="addcaption":
+    elif type=="addcaption":
      await query.message.delete()
      caption = await bot.ask(query.message.chat.id, "Send your custom caption\n/cancel - <code>cancel this process</code>")
      if caption.text=="/cancel":
@@ -232,7 +236,7 @@ async def settings_callback(bot, query):
         "<b>successfully updated</b>",
         reply_markup=InlineKeyboardMarkup(buttons))
 
-  elif type=="button":
+    elif type=="button":
      buttons = []
      button = (await get_configs(user_id))['button']
      if button is None:
@@ -249,7 +253,7 @@ async def settings_callback(bot, query):
         "<b><u>CUSTOM BUTTON</b></u>\n\n<b>You can set a inline button to messages.</b>\n\n<b><u>FORMAT:</b></u>\n`[Forward bot][buttonurl:https://t.me/mychannelurl]`\n",
         reply_markup=InlineKeyboardMarkup(buttons))
 
-  elif type=="addbutton":
+    elif type=="addbutton":
      await query.message.delete()
      ask = await bot.ask(user_id, text="**Send your custom button.\n\nFORMAT:**\n`[forward bot][buttonurl:https://t.me/url]`\n")
      button = parse_buttons(ask.text.html)
@@ -259,7 +263,7 @@ async def settings_callback(bot, query):
      await ask.reply("**Successfully button added**",
              reply_markup=InlineKeyboardMarkup(buttons))
 
-  elif type=="seebutton":
+    elif type=="seebutton":
       button = (await get_configs(user_id))['button']
       button = parse_buttons(button, markup=False)
       button.append([InlineKeyboardButton("back", "settings#button")])
@@ -267,13 +271,13 @@ async def settings_callback(bot, query):
          "**YOUR CUSTOM BUTTON**",
          reply_markup=InlineKeyboardMarkup(button))
 
-  elif type=="deletebutton":
+    elif type=="deletebutton":
      await update_configs(user_id, 'button', None)
      await query.message.edit_text(
         "**Successfully button deleted**",
         reply_markup=InlineKeyboardMarkup(buttons))
 
-  elif type=="database":
+    elif type=="database":
      buttons = []
      db_uri = (await get_configs(user_id))['db_uri']
      if db_uri is None:
@@ -290,7 +294,7 @@ async def settings_callback(bot, query):
         "<b><u>DATABASE</u></b>\n\nDatabase is required for store your duplicate messages permenant. other wise stored duplicate media may be disappeared when after bot restart.</b>",
         reply_markup=InlineKeyboardMarkup(buttons))
 
-  elif type=="addurl":
+    elif type=="addurl":
      await query.message.delete()
      uri = await bot.ask(user_id, "<b>please send your mongodb url.</b>\n\n<i>get your Mongodb url from [MangoDb](https://mongodb.com)</i>", disable_web_page_preview=True)
      if uri.text=="/cancel":
@@ -311,27 +315,27 @@ async def settings_callback(bot, query):
      await uri.reply("**Successfully database url added**",
              reply_markup=InlineKeyboardMarkup(buttons))
 
-  elif type=="seeurl":
+    elif type=="seeurl":
      db_uri = (await get_configs(user_id))['db_uri']
      await query.answer(f"DATABASE URL: {db_uri}", show_alert=True)
 
-  elif type=="deleteurl":
+    elif type=="deleteurl":
      await update_configs(user_id, 'db_uri', None)
      await query.answer("Custom thumbnail deleted successfully!")
      await query.message.edit_text(
         "**Successfully your database url deleted**",
         reply_markup=InlineKeyboardMarkup(buttons))
 
-  elif type=="filters":
+    elif type=="filters":
      await query.message.edit_text(
         "<b><u>💠 CUSTOM FILTERS 💠</b></u>\n\n**configure the type of messages which you want forward**",
         reply_markup=await filters_buttons(user_id))
 
-  elif type=="nextfilters":
+    elif type=="nextfilters":
      await query.edit_message_reply_markup( 
         reply_markup=await next_filters_buttons(user_id))
 
-  elif type.startswith("updatefilter"):
+    elif type.startswith("updatefilter"):
      i, key, value = type.split('-')
      if value=="True":
         await update_configs(user_id, key, False)
@@ -343,21 +347,21 @@ async def settings_callback(bot, query):
      await query.edit_message_reply_markup(
         reply_markup=await filters_buttons(user_id))
 
-  elif type.startswith("file_size"):
+    elif type.startswith("file_size"):
     settings = await get_configs(user_id)
     size = settings.get('min_size', 0)
     await query.message.edit_text(
        f'<b><u>SIZE LIMIT</b></u><b>\n\nyou can set file Minimum size limit to forward\n\nfiles with greater than `{size} MB` will forward</b>',
        reply_markup=size_button(size))
      
-  elif type.startswith("maxfile_size"):
+    elif type.startswith("maxfile_size"):
     settings = await get_configs(user_id)
     size = settings.get('max_size', 0)
     await query.message.edit_text(
        f'<b><u>Max SIZE LIMIT</b></u><b>\n\nyou can set file Maximum size limit to forward\n\nfiles with less than `{size} MB` will forward</b>',
        reply_markup=maxsize_button(size))
 
-  elif type.startswith("update_size"):
+    elif type.startswith("update_size"):
     size = int(query.data.split('-')[1])
     if 0 < size > 4000:
       return await query.answer("size limit exceeded", show_alert=True)
@@ -367,7 +371,7 @@ async def settings_callback(bot, query):
        f'<b><u>SIZE LIMIT</b></u><b>\n\nyou can set file Minimum size limit to forward\n\nfiles with greater than `{size} MB` will forward</b>',
        reply_markup=size_button(size))
      
-  elif type.startswith("maxupdate_size"):
+    elif type.startswith("maxupdate_size"):
     size = int(query.data.split('-')[1])
     if 0 < size > 4000:
       return await query.answer("size limit exceeded", show_alert=True)
@@ -377,7 +381,7 @@ async def settings_callback(bot, query):
        f'<b><u>Max SIZE LIMIT</b></u><b>\n\nyou can set file Maximum size limit to forward\n\nfiles with less than `{size} MB` will forward</b>',
        reply_markup=maxsize_button(size))
 
-  elif type.startswith('update_limit'):
+    elif type.startswith('update_limit'):
     i, limit, size = type.split('-')
     limit, sts = size_limit(limit)
     await update_configs(user_id, 'size_limit', limit) 
@@ -385,7 +389,7 @@ async def settings_callback(bot, query):
        f'<b><u>SIZE LIMIT</b></u><b>\n\nyou can set file size limit to forward\n\nStatus: files with {sts} `{size} MB` will forward</b>',
        reply_markup=size_button(int(size)))
 
-  elif type == "add_extension":
+    elif type == "add_extension":
     await query.message.delete() 
     ext = await bot.ask(user_id, text="**please send your extensions (seperete by space)**")
     if ext.text == '/cancel':
@@ -407,7 +411,7 @@ async def settings_callback(bot, query):
         f"**successfully updated**",
         reply_markup=InlineKeyboardMarkup(buttons))
 
-  elif type == "get_extension":
+    elif type == "get_extension":
     extensions = (await get_configs(user_id))['extension']
     btn = []
     text = ""
@@ -424,14 +428,14 @@ async def settings_callback(bot, query):
         text=f"<b><u>EXTENSIONS</u></b>\n\n**Files with these extiontions will not forward**\n\n{text}",
         reply_markup=InlineKeyboardMarkup(btn))
 
-  elif type == "rmve_all_extension":
+    elif type == "rmve_all_extension":
     await update_configs(user_id, 'extension', None)
     buttons = []
     buttons.append([InlineKeyboardButton('back', 
                       callback_data="settings#get_extension")])
     await query.message.edit_text(text="**successfully deleted**",
                                    reply_markup=InlineKeyboardMarkup(buttons))
-  elif type == "add_keyword":
+    elif type == "add_keyword":
     await query.message.delete()
     ask = await bot.ask(user_id, text="**please send the keywords (seperete by space Like:- English 1080p Hdrip)**")
     if ask.text == '/cancel':
@@ -453,7 +457,7 @@ async def settings_callback(bot, query):
         f"**successfully updated**",
         reply_markup=InlineKeyboardMarkup(buttons))
 
-  elif type == "get_keyword":
+    elif type == "get_keyword":
     keywords = (await get_configs(user_id))['keywords']
     btn = []
     text = ""
@@ -470,56 +474,62 @@ async def settings_callback(bot, query):
         text=f"<b><u>Keywords</u></b>\n\n**Files with these keywords in file name only forwad**\n\n{text}",
         reply_markup=InlineKeyboardMarkup(btn))
 
-  elif type == "rmve_all_keyword":
+    elif type == "rmve_all_keyword":
     await update_configs(user_id, 'keywords', None)
     buttons = []
     buttons.append([InlineKeyboardButton('back', 
                       callback_data="settings#get_keyword")])
     await query.message.edit_text(text="**successfully deleted All Keywords**",
                                    reply_markup=InlineKeyboardMarkup(buttons))
-  elif type.startswith("alert"):
+    elif type.startswith("alert"):
     alert = type.split('_')[1]
     await query.answer(alert, show_alert=True)
 
-  elif type == "thumbnail":
-    user_config = await get_configs(user_id)
-    remove_status = "✅ Enabled" if user_config.get('remove_thumbnails', False) else "❌ Disabled"
-    has_custom = "✅ Set" if user_config.get('custom_thumbnail') else "❌ Not Set"
-    
-    buttons = [
-        [InlineKeyboardButton(f'🔄 Auto-Remove Thumbnails: {remove_status}', callback_data="settings#toggle_removal")],
-        [InlineKeyboardButton(f'🖼️ Custom Thumbnail: {has_custom}', callback_data="settings#set_custom_thumbnail")],
-        [InlineKeyboardButton('🗑 Delete Custom Thumbnail', callback_data="settings#delete_custom_thumbnail")],
-        [InlineKeyboardButton('⫷ Bᴀᴄᴋ', callback_data="settings#main")]
-    ]
-    await query.message.edit_text(
-        "**🖼️ Tʜᴜᴍʙɴᴀɪʟ Sᴇᴛᴛɪɴɢs**\n\nManage your thumbnail preferences here.\n\n• Auto-Remove: When enabled, thumbnails will be removed from forwarded media.\n• Custom Thumbnail: Set a custom thumbnail to use for your media.",
-        reply_markup=InlineKeyboardMarkup(buttons))
+    elif type == "thumbnail":
+      user_config = await get_configs(user_id)
+      remove_status = "✅ Enabled" if user_config.get('remove_thumbnails', False) else "❌ Disabled"
+      has_custom = "✅ Set" if user_config.get('custom_thumbnail') else "❌ Not Set"
+      
+      buttons = [
+          [InlineKeyboardButton(f'🔄 Auto-Remove Thumbnails: {remove_status}', callback_data="settings#toggle_removal")],
+          [InlineKeyboardButton(f'🖼️ Custom Thumbnail: {has_custom}', callback_data="settings#set_custom_thumbnail")],
+          [InlineKeyboardButton('🗑 Delete Custom Thumbnail', callback_data="settings#delete_custom_thumbnail")],
+          [InlineKeyboardButton('⫷ Bᴀᴄᴋ', callback_data="settings#main")]
+      ]
+      try:
+          await query.message.edit_text(
+              "**🖼️ Tʜᴜᴍʙɴᴀɪʟ Sᴇᴛᴛɪɴɢs**\n\nManage your thumbnail preferences here.\n\n• Auto-Remove: When enabled, thumbnails will be removed from forwarded media.\n• Custom Thumbnail: Set a custom thumbnail to use for your media.",
+              reply_markup=InlineKeyboardMarkup(buttons))
+      except MessageNotModified:
+          await query.answer("Thumbnail settings already displayed")
 
-  elif type == "toggle_removal":
-    user_config = await get_configs(user_id)
-    current_status = user_config.get('remove_thumbnails', False)
-    new_status = not current_status
-    await update_configs(user_id, 'remove_thumbnails', new_status)
-    
-    # Get updated status for display
-    updated_config = await get_configs(user_id)
-    remove_status = "✅ Enabled" if updated_config.get('remove_thumbnails', False) else "❌ Disabled"
-    has_custom = "✅ Set" if updated_config.get('custom_thumbnail') else "❌ Not Set"
-    
-    buttons = [
-        [InlineKeyboardButton(f'🔄 Auto-Remove Thumbnails: {remove_status}', callback_data="settings#toggle_removal")],
-        [InlineKeyboardButton(f'🖼️ Custom Thumbnail: {has_custom}', callback_data="settings#set_custom_thumbnail")],
-        [InlineKeyboardButton('🗑 Delete Custom Thumbnail', callback_data="settings#delete_custom_thumbnail")],
-        [InlineKeyboardButton('⫷ Bᴀᴄᴋ', callback_data="settings#main")]
-    ]
-    
-    await query.answer(f"Thumbnail Removal {'Enabled' if new_status else 'Disabled'}")
-    await query.message.edit_text(
-        "**🖼️ Tʜᴜᴍʙɴᴀɪʟ Sᴇᴛᴛɪɴɢs**\n\nManage your thumbnail preferences here.\n\n• Auto-Remove: When enabled, thumbnails will be removed from forwarded media.\n• Custom Thumbnail: Set a custom thumbnail to use for your media.",
-        reply_markup=InlineKeyboardMarkup(buttons))
+    elif type == "toggle_removal":
+      user_config = await get_configs(user_id)
+      current_status = user_config.get('remove_thumbnails', False)
+      new_status = not current_status
+      await update_configs(user_id, 'remove_thumbnails', new_status)
+      
+      # Get updated status for display
+      updated_config = await get_configs(user_id)
+      remove_status = "✅ Enabled" if updated_config.get('remove_thumbnails', False) else "❌ Disabled"
+      has_custom = "✅ Set" if updated_config.get('custom_thumbnail') else "❌ Not Set"
+      
+      buttons = [
+          [InlineKeyboardButton(f'🔄 Auto-Remove Thumbnails: {remove_status}', callback_data="settings#toggle_removal")],
+          [InlineKeyboardButton(f'🖼️ Custom Thumbnail: {has_custom}', callback_data="settings#set_custom_thumbnail")],
+          [InlineKeyboardButton('🗑 Delete Custom Thumbnail', callback_data="settings#delete_custom_thumbnail")],
+          [InlineKeyboardButton('⫷ Bᴀᴄᴋ', callback_data="settings#main")]
+      ]
+      
+      await query.answer(f"Thumbnail Removal {'Enabled' if new_status else 'Disabled'}")
+      try:
+          await query.message.edit_text(
+              "**🖼️ Tʜᴜᴍʙɴᴀɪʟ Sᴇᴛᴛɪɴɢs**\n\nManage your thumbnail preferences here.\n\n• Auto-Remove: When enabled, thumbnails will be removed from forwarded media.\n• Custom Thumbnail: Set a custom thumbnail to use for your media.",
+              reply_markup=InlineKeyboardMarkup(buttons))
+      except MessageNotModified:
+          logger.info("Message not modified in toggle_removal")
 
-  elif type == "set_custom_thumbnail":
+    elif type == "set_custom_thumbnail":
     await query.message.delete()
     thumbnail_msg = await bot.ask(query.from_user.id, "Send a photo to set as custom thumbnail")
     
@@ -553,25 +563,31 @@ async def settings_callback(bot, query):
     else:
         await thumbnail_msg.reply_text("❌ Invalid media type. Please send a photo as thumbnail.")
 
-  elif type == "delete_custom_thumbnail":
-    await update_configs(user_id, 'custom_thumbnail', None)
-    
-    # Get updated status for display
-    updated_config = await get_configs(user_id)
-    remove_status = "✅ Enabled" if updated_config.get('remove_thumbnails', False) else "❌ Disabled"
-    has_custom = "✅ Set" if updated_config.get('custom_thumbnail') else "❌ Not Set"
-    
-    buttons = [
-        [InlineKeyboardButton(f'🔄 Auto-Remove Thumbnails: {remove_status}', callback_data="settings#toggle_removal")],
-        [InlineKeyboardButton(f'🖼️ Custom Thumbnail: {has_custom}', callback_data="settings#set_custom_thumbnail")],
-        [InlineKeyboardButton('🗑 Delete Custom Thumbnail', callback_data="settings#delete_custom_thumbnail")],
-        [InlineKeyboardButton('⫷ Bᴀᴄᴋ', callback_data="settings#main")]
-    ]
-    
-    await query.answer("Custom thumbnail deleted successfully!")
-    await query.message.edit_text(
-        "**🖼️ Tʜᴜᴍʙɴᴀɪʟ Sᴇᴛᴛɪɴɢs**\n\nManage your thumbnail preferences here.\n\n• Auto-Remove: When enabled, thumbnails will be removed from forwarded media.\n• Custom Thumbnail: Set a custom thumbnail to use for your media.",
-        reply_markup=InlineKeyboardMarkup(buttons))
+    elif type == "delete_custom_thumbnail":
+      await update_configs(user_id, 'custom_thumbnail', None)
+      
+      # Get updated status for display
+      updated_config = await get_configs(user_id)
+      remove_status = "✅ Enabled" if updated_config.get('remove_thumbnails', False) else "❌ Disabled"
+      has_custom = "✅ Set" if updated_config.get('custom_thumbnail') else "❌ Not Set"
+      
+      buttons = [
+          [InlineKeyboardButton(f'🔄 Auto-Remove Thumbnails: {remove_status}', callback_data="settings#toggle_removal")],
+          [InlineKeyboardButton(f'🖼️ Custom Thumbnail: {has_custom}', callback_data="settings#set_custom_thumbnail")],
+          [InlineKeyboardButton('🗑 Delete Custom Thumbnail', callback_data="settings#delete_custom_thumbnail")],
+          [InlineKeyboardButton('⫷ Bᴀᴄᴋ', callback_data="settings#main")]
+      ]
+      
+      try:
+          await query.answer("Custom thumbnail deleted successfully!")
+          await query.message.edit_text(
+              "**🖼️ Tʜᴜᴍʙɴᴀɪʟ Sᴇᴛᴛɪɴɢs**\n\nManage your thumbnail preferences here.\n\n• Auto-Remove: When enabled, thumbnails will be removed from forwarded media.\n• Custom Thumbnail: Set a custom thumbnail to use for your media.",
+              reply_markup=InlineKeyboardMarkup(buttons))
+      except MessageNotModified:
+          logger.info("Message not modified in delete_custom_thumbnail")
+      except Exception as e:
+          logger.error(f"Error deleting custom thumbnail: {e}")
+          await query.answer("Failed to delete custom thumbnail. Please try again.")
 
 async def process_media_thumbnail(file_type: str, file_data: dict, user_id: int) -> dict:
     """
