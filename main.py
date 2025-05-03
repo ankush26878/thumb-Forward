@@ -18,7 +18,6 @@ from typing import Union, Optional, AsyncGenerator
 from logging.handlers import RotatingFileHandler
 
 from plugins.regix import restart_forwards
-from plugins.thumbnail import thumbnail_callback_handler
 
 
 # Configure logging
@@ -56,7 +55,7 @@ if __name__ == "__main__":
 
         sleep_threshold=120,
 
-        plugins=dict(root="plugins", include=["thumbnail"])
+        plugins=dict(root="plugins")
 
     )
 
