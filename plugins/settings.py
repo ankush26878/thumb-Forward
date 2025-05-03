@@ -3,11 +3,15 @@
 # Ask Doubt on telegram @KingVJ01
 
 import asyncio 
+import logging
 from database import Db, db
 from script import Script
 from pyrogram import Client, filters
+
+logger = logging.getLogger(__name__)
 from .test import get_configs, update_configs, CLIENT, parse_buttons
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+from .thumbnail import handle_thumbnail_settings
 from .db import connect_user_db
 
 CLIENT = CLIENT()
@@ -27,11 +31,37 @@ async def settings(client, message):
 # Subscribe YouTube Channel For Amazing Bot https://youtube.com/@Tech_VJ
 # Ask Doubt on telegram @KingVJ01
 
-@Client.on_callback_query(filters.regex(r'^settings'))
-async def settings_query(bot, query):
-  user_id = query.from_user.id
-  i, type = query.data.split("#")
-  buttons = [[InlineKeyboardButton('back', callback_data="settings#main")]]
+@Client.on_callback_query(filters.regex(r'^thumbnail'))
+async def thumbnail_settings_query(bot, query):
+    user_id = query.from_user.id
+    try:
+        _, action = query.data.split("#")
+        
+        if action == 'settings':
+            # Show thumbnail settings menu
+            await query.message.edit_text(
+                "<b>📸 Thumbnail Settings</b>\n\nManage your media thumbnails here.",
+                reply_markup=thumbnail_buttons(user_id)
+            )
+        
+        elif action == 'upload':
+            # Prompt user to upload a thumbnail
+            await query.message.edit_text(
+                "🖼️ Please send an image to set as your default thumbnail."
+            )
+        
+        elif action == 'delete':
+            # Delete user's current thumbnail
+            await update_configs(user_id, {'thumbnail': None})
+            await query.answer("✅ Thumbnail deleted successfully!", show_alert=True)
+            await query.message.edit_text(
+                "<b>📸 Thumbnail Settings</b>\n\nManage your media thumbnails here.",
+                reply_markup=thumbnail_buttons(user_id)
+            )
+    
+    except Exception as e:
+        logger.error(f"Thumbnail settings error: {e}")
+        await query.answer("❌ An error occurred.", show_alert=True)
   if type=="main":
      await query.message.edit_text(
        "<b>Hᴇʀᴇ Is Tʜᴇ Sᴇᴛᴛɪɴɢs Pᴀɴᴇʟ⚙\n\nᴄʜᴀɴɢᴇ ʏᴏᴜʀ sᴇᴛᴛɪɴɢs ᴀs ʏᴏᴜʀ ᴡɪsʜ 👇</b>",
@@ -471,35 +501,22 @@ def extra_buttons():
                     callback_data=f'settings#file_size')
        ],[
        InlineKeyboardButton('💾 Mᴀx Sɪᴢᴇ Lɪᴍɪᴛ',
-                    callback_data=f'settings#maxfile_size ')
-       ],[
-       InlineKeyboardButton('🚥 Keywords',
-                    callback_data=f'settings#get_keyword'),
-       InlineKeyboardButton('🕹 Extensions',
-                    callback_data=f'settings#get_extension')
-       ],[
-       InlineKeyboardButton('⫷ Bᴀᴄᴋ',
-                    callback_data=f'settings#main')
-       ]]
-   return InlineKeyboardMarkup(buttons)
-
-# Don't Remove Credit Tg - @VJ_Botz
-# Subscribe YouTube Channel For Amazing Bot https://youtube.com/@Tech_VJ
-# Ask Doubt on telegram @KingVJ01
 
 def main_buttons():
-  buttons = [[
-       InlineKeyboardButton('🤖 Bᴏᴛs',
-                    callback_data=f'settings#bots'),
-       InlineKeyboardButton('🏷 Cʜᴀɴɴᴇʟs',
-                    callback_data=f'settings#channels')
-       ],[
-       InlineKeyboardButton('🖋️ Cᴀᴘᴛɪᴏɴ',
-                    callback_data=f'settings#caption'),
-       InlineKeyboardButton('⏹ Bᴜᴛᴛᴏɴ',
-                    callback_data=f'settings#button')
-       ],[
-       InlineKeyboardButton('🕵‍♀ Fɪʟᴛᴇʀs 🕵‍♀',
+    buttons = [
+        [InlineKeyboardButton('🔧 Extra Settings', callback_data='settings#extra')],
+        [InlineKeyboardButton('🔍 Filters', callback_data='settings#filters')],
+        [InlineKeyboardButton('🖼️ Thumbnail Settings', callback_data='thumbnail#settings')]
+    ]
+    return InlineKeyboardMarkup(buttons)
+
+def thumbnail_buttons(user_id):
+    buttons = [
+        [InlineKeyboardButton('📸 Upload Thumbnail', callback_data='thumbnail#upload')],
+        [InlineKeyboardButton('🚫 Delete Thumbnail', callback_data='thumbnail#delete')],
+        [InlineKeyboardButton('🔙 Back', callback_data='settings#extra')]
+    ]
+    return InlineKeyboardMarkup(buttons)
                     callback_data=f'settings#filters'),
        InlineKeyboardButton('🗃 MᴏɴɢᴏDB',
                     callback_data=f'settings#database')
