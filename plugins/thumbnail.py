@@ -423,19 +423,32 @@ async def process_media_thumbnail(file_type: str, file_data: dict, user_id: int)
         return file_data
 
 async def thumbnail_buttons(user_id=None):
-    if user_id:
-        user_config = await get_configs(user_id)
-        remove_status = "✅ Enabled" if user_config.get('remove_thumbnails', False) else "❌ Disabled"
-    else:
-        remove_status = "❌ Disabled"
-    
-    buttons = [
-        [InlineKeyboardButton("✚ Add Thumbnail", callback_data="thumbnail#custom")],
-        [InlineKeyboardButton("👀 View Thumbnail", callback_data="thumbnail#view_custom")],
-        [InlineKeyboardButton("🗑 Remove Thumbnail", callback_data="thumbnail#remove_custom")],
-        [InlineKeyboardButton("🔘 Default Thumbnail", callback_data="thumbnail#default")],
-        [InlineKeyboardButton(f"🔄 Auto-Remove Thumbnails: {remove_status}", callback_data="thumbnail#toggle_removal")],
-        [InlineKeyboardButton("💧 Watermark Settings", callback_data="thumbnail#watermark")],
-        [InlineKeyboardButton("🔙 Back", callback_data="settings#main")]
-    ]
-    return InlineKeyboardMarkup(buttons)
+    logger.info(f"Generating thumbnail buttons for user_id: {user_id}")
+    try:
+        if user_id:
+            user_config = await get_configs(user_id)
+            remove_status = "✅ Enabled" if user_config.get('remove_thumbnails', False) else "❌ Disabled"
+            logger.info(f"User {user_id} thumbnail removal status: {remove_status}")
+        else:
+            remove_status = "❌ Disabled"
+            logger.info("No user_id provided, defaulting to disabled")
+        
+        buttons = [
+            [InlineKeyboardButton("✚ Add Thumbnail", callback_data="thumbnail#custom")],
+            [InlineKeyboardButton("👀 View Thumbnail", callback_data="thumbnail#view_custom")],
+            [InlineKeyboardButton("🗑 Remove Thumbnail", callback_data="thumbnail#remove_custom")],
+            [InlineKeyboardButton("🔘 Default Thumbnail", callback_data="thumbnail#default")],
+            [InlineKeyboardButton(f"🔄 Auto-Remove Thumbnails: {remove_status}", callback_data="thumbnail#toggle_removal")],
+            [InlineKeyboardButton("💧 Watermark Settings", callback_data="thumbnail#watermark")],
+            [InlineKeyboardButton("🔙 Back", callback_data="settings#main")]
+        ]
+        logger.info(f"Generated thumbnail buttons: {buttons}")
+        return InlineKeyboardMarkup(buttons)
+    except Exception as e:
+        logger.error(f"Error generating thumbnail buttons: {e}", exc_info=True)
+        # Fallback buttons
+        buttons = [
+            [InlineKeyboardButton("✚ Add Thumbnail", callback_data="thumbnail#custom")],
+            [InlineKeyboardButton("🔙 Back", callback_data="settings#main")]
+        ]
+        return InlineKeyboardMarkup(buttons)
