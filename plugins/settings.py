@@ -34,14 +34,22 @@ async def settings(client, message):
 @Client.on_callback_query(filters.regex(r'^thumbnail'))
 async def thumbnail_settings_query(bot, query):
     from .thumbnail import handle_thumbnail_settings
+    from .thumbnail import thumbnail_buttons
     
-    _, action = query.data.split("#")
-    await handle_thumbnail_settings(bot, query, action)
-    
-    elif action == 'upload':
-        await query.message.edit_text(
-            "🖼️ Please send an image to set as your default thumbnail."
-        )
+    try:
+        _, action = query.data.split("#")
+        
+        if action == 'main':
+            await query.message.edit_text(
+                "**🖼️ Thumbnail Settings**\n\nManage your thumbnail preferences here.",
+                reply_markup=thumbnail_buttons(query.from_user.id)
+            )
+            return
+        
+        await handle_thumbnail_settings(bot, query, action)
+    except Exception as e:
+        logger.error(f"Thumbnail settings query error: {e}")
+        await query.answer("An error occurred", show_alert=True)
     
     elif action == 'delete':
         # Remove thumbnail from user config
